@@ -121,7 +121,8 @@ class FastTest(unittest.TestCase):
       
     self.sampler = sampler
     self.market = market
-    
+
+  @unittest.skip("Graphical debugging.") 
   def test_surface(self):
     import matplotlib.pyplot as plt
     sampler = self.sampler
@@ -136,7 +137,8 @@ class FastTest(unittest.TestCase):
     plt.scatter(mul, sigmal)
     plt.show()
     plt.close()
-    
+  
+  @unittest.skip("Graphical debugging.")  
   def test_sample_V(self):
     import matplotlib.pyplot as plt
     import numpy as np
@@ -162,7 +164,8 @@ class FastTest(unittest.TestCase):
     plt.title("Sample V")
     plt.show()
     plt.close()
-    
+
+  @unittest.skip("Graphical debugging.") 
   def test_sample_W(self):
     import matplotlib.pyplot as plt
     import numpy as np

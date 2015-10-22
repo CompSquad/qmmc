@@ -38,7 +38,7 @@ class DistribTest(unittest.TestCase):
           dEP(x, mu, sigma, beta, log=True),
           np.log(dEP(x, mu, sigma, beta)), delta=.001)
       
-      
+  @unittest.skip("Deprecated.")   
   def test_loglikEP(self):
     p = np.array([0, 1.3, 1.5])
     y = rEP(*p, size=100000)
@@ -47,7 +47,8 @@ class DistribTest(unittest.TestCase):
       params = p + .1 * np.random.randn(3)
       ll = likelihoodEP(y, *params, log=True)
       self.assertGreaterEqual(ll_real, ll)
-      
+
+  @unittest.skip("Deprecated.") 
   def test_MH_EP(self):
     import matplotlib.pyplot as plt
     
@@ -75,7 +76,8 @@ class DistribTest(unittest.TestCase):
     plt.axhline(alpha, ls='--', color='black')
     plt.title("Convergence of samples (EP)")
     plt.show()
-    
+
+  @unittest.skip("Graphical debugging.") 
   def test_MH_SEP(self):
     import matplotlib.pyplot as plt
     
