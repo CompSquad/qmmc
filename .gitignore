@@ -1,0 +1,14 @@
+*.pyc
+.project
+*.lyx#
+*.lyx~
+.DS_Store
+.pydevproject
+.Rhistory
+*.so
+qmmc/.*
+examples/.*
+UNKNOWN.egg-info/*
+build/*
+qmmc.egg-info/*
+*.c
