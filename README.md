@@ -3,9 +3,7 @@ Quote market Monte Carlo.
 
 This module can be used to estimate the latent pricing strategies of actors 
 in a bond market. It relies on Gibbs sampling and Metropolis-Hastings 
-for parameter estimation. Pricing strategies can be standard Gaussian densities 
-or less common but (expectedly) more realistic Exponential Power (EP) and Skewed 
-Exponential Power (SEP) distributions.
+for parameter estimation.
 
 installing
 ----------
@@ -23,6 +21,17 @@ If everything is OK, you can proceed with the installation.
 python setup.py install
 ```
 
+Cython
+------
+
+Cython support has been removed by default. Soon to be re-enabled.
+
+Testing
+-------
+
+```shell
+python -m unittest discover -v
+```
 
 Documentation
 -------------
