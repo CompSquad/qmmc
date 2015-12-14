@@ -1,0 +1,4 @@
+Y ~ Alpha: mu = 0.00, sigma = 2.00, nb_quotes = 4000,
+W ~ Alpha: mu = 0.00, sigma = 2.00, nb_quotes = 4000, 
+V ~ Beta_1: mu = -1.00, sigma = 2.00, id = 1, nb_quotes = 2024
+        Beta_2: mu = 1.00, sigma = 2.00, id = 2, nb_quotes = 1976

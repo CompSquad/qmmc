@@ -2,110 +2,34 @@
 
 __author__ = "arnaud.rachez@gmail.com"
 
-import logging
+# cython: profile=True
 
-from math import factorial
+import copy
 
 import numpy as np
+cimport numpy as np
+import pandas as pd
 import scipy.stats 
 import scipy.integrate
 
-from qmmc.distrib import    dEP, dEP, rEP, dSEP, rSEP
-from qmmc.distrib import likelihoodEP, likelihoodSEP
-from qmmc.distrib import MetropolisHastings
-
-import warnings
-
-def deprecated(func):
-        """This is a decorator which can be used to mark functions
-        as deprecated. It will result in a warning being emmitted
-        when the function is used."""
-        def newFunc(*args, **kwargs):
-                warnings.warn("Call to deprecated function %s." % func.__name__,
-                                            category=DeprecationWarning)
-                return func(*args, **kwargs)
-        newFunc.__name__ = func.__name__
-        newFunc.__doc__ = func.__doc__
-        newFunc.__dict__.update(func.__dict__)
-        return newFunc
+from distrib import dEP, rEP, dSEP, rSEP
+from distrib import likelihoodEP, likelihoodSEP
+from distrib import MetropolisHastings
 
 
 class Error(Exception):
     """ Base class for handling Errors. """
     pass
 
-
 class CaughtInLoop(Error):
     """ Rejection sampling is failing. """
     pass
-
-  
+    
 class BadInitialization(Error):
     """ Assignement to initial hidden values is impossible. """
     pass
 
-
-class Value:
-    
-    def __init__(self, value):
-        
-        self.value = value
-
-    def sample(self):
-        
-        return self.value
-    
-    def logp(self):
-        
-        return 0.
-
-
-class Uniform:
-    
-    def __init__(self, value=None):
-        
-        self.value = value
-    
-    def sample(self):
-        
-        self.value = np.random.rand()
-        return self.value
-    
-    def logp(self):
-        
-        return 0
-
-
-class TruncatedBinomial:
-    
-    def __init__(self, p, k, value=None):
-        
-        self.p = p
-        self.k = k
-        self.value = value
-    
-    def sample(self):
-        
-        self.value = self._sample(self.p.value, self.k.value)
-        return self.value
-    
-    def logp(self):
-        
-        return self._logp(self.value, self.p.value, self.k.value)
-    
-    def _sample(self, p, k):
-        
-        return np.random.binomial(k, p)
-    
-    def _logp(self, value, p, k):
-        
-        prob = (p ** value) * ((1 - p) ** (k - value))
-        prob *= factorial(k) / (factorial(value) * factorial(k - value))
-        
-        return np.log(prob)
-
-
-class BayesianLinearRegression:
+cdef class BayesianLinearRegression:
     """ This is a linear regression learned using Metropolis-Hastings.
     
     Attributes:
@@ -115,6 +39,10 @@ class BayesianLinearRegression:
         history (numpy.array): An array containing all the sampled parameters.
         """
     
+    cdef public np.ndarray w
+    cdef public list params
+    cdef public np.ndarray history
+    
     def __init__(self):
         self.w = None
         self.params = []
@@ -122,6 +50,18 @@ class BayesianLinearRegression:
     
     def __str__(self):
         return "input_dim = %d, w = %s" % (self.input_dim, str(self.w))
+    
+    def __reduce__(self):
+        d = {}
+        d['w'] = self.w
+        d['params'] = self.params
+        d['history'] = self.history
+        return (BayesianLinearRegression, (), d)
+    
+    def __setstate__(self, d):
+        self.w = d['w']
+        self.params = d['params']
+        self.history = d['history']
     
     def post_init(self, input_dim):
         """ This function will be called when the first co-variable is encountered. 
@@ -159,7 +99,7 @@ class BayesianLinearRegression:
         self.w = np.array(w)
         if reset == True or self.history is None:
             self.history = np.array([self.w])
-
+    
     def update_params(self):
         """ Updates the parameters using Metropolis-Hastings.
         
@@ -177,19 +117,20 @@ class BayesianLinearRegression:
         niter = 10
         x = np.array([1])
         params_init = np.array(self.w)
-        samples = MetropolisHastings(niter, x, self.loglik, params_init=params_init)
+        samples = MetropolisHastings(niter, x, self.loglik, params_init=params_init,
+                                                                 log_prior=None)
         self.w = samples[-1]
         self.history = np.vstack((self.history, self.w))
     
-    def loglik(self, x=0, *argv, **argc):
+    def loglik(self, int x=0, *argv, **argc):
         """ The log-likelihood of the quotes. """        
         # The likelihood is computed given the current set of parameters for
         # `structure.Alpha`, `structure.Beta` and `structure.BayesianLinearRegression`.
         # Since it does not accept any parameters, it forces the MetropolisHastings 
         # call to be subverted.
-        # (see `structure.BayesianLogisticRegression.update_params()`)
-        ll = 0
-        w_prev = self.w if self.w is None else np.array(self.w)
+        # (see `structure.BayesianLogisticRegression.update_params())
+        cdef float ll = 0
+        cdef np.ndarray w_prev = self.w if self.w is None else np.array(self.w)
         self.w = np.array(argv) if argv is not None else None
         assert(w_prev is not self.w)
         for param in self.params:
@@ -197,13 +138,13 @@ class BayesianLinearRegression:
         self.w = w_prev
         return ll
 
-class BaseParams(object):
+cdef class BaseParams:
     """ This class is necessary for polymorphism with Cython.
     
     Note:
         Cython does not seem to be compatible with abstract classes in python."""
 
-class Alpha(BaseParams):
+cdef class Alpha(BaseParams):
     """ Parameters for the :math:`f` distribution on the :math:`W_k`.
 
     In this version the distribution is a gaussian with mean :math:`\mu`
@@ -222,7 +163,12 @@ class Alpha(BaseParams):
         history (dict): A list of the sample history of parameters.
     """
     
-    def __init__(self, mu=0, sigma=3):
+    cdef public float mu, sigma
+    cdef public BayesianLinearRegression lr
+    cdef public list quotes
+    cdef public dict history
+    
+    def __init__(self, float mu=0, float sigma=3):
         self.mu = mu
         self.sigma = sigma
         self.lr = BayesianLinearRegression()
@@ -234,6 +180,22 @@ class Alpha(BaseParams):
         params = {"mu": self.mu, "sigma": self.sigma, "nb_quotes": len(self.quotes)}
         return ("Alpha: mu = %(mu).2f, sigma = %(sigma).2f, nb_quotes = %(nb_quotes)s" 
                         % params)
+    
+    def __reduce__(self):
+        d = {}
+        d['mu'] = self.mu
+        d['sigma'] = self.sigma
+        d['lr'] = self.lr
+        d['quotes'] = self.quotes
+        d['history'] = self.history
+        return (Alpha, (), d)
+    
+    def __setstate__(self, d):
+        self.mu = d['mu']
+        self.sigma = d['sigma']
+        self.lr = d['lr']
+        self.quotes = d['quotes']
+        self.history = d['history']
     
     def set_params(self, mu, sigma=2):
         """ Sets a hard value for :math:`\mu`, :math:`\sigma` and :math:`w`."""
@@ -286,7 +248,7 @@ class Alpha(BaseParams):
             ndW += len(quote.dW())
         
         mu_prior = 0
-        sigma_prior = 10
+        sigma_prior = 3
         mu = ((mu_prior / sigma_prior**2 + np.sum(dW) / self.sigma**2) / 
                     (1. / sigma_prior**2 + ndW / self.sigma**2))
         sigma = np.sqrt(1. / (1. / sigma_prior**2 + ndW / self.sigma**2))
@@ -301,15 +263,17 @@ class Alpha(BaseParams):
             dbar += np.sum(a)
             ndW += len(quote.dW())
         
-        scale_prior = 3
-        shape_prior = 1
+        scale_prior = 20
+        shape_prior = 9
         scale = scale_prior + dbar / 2
         shape = shape_prior + ndW / 2
         self.sigma = np.sqrt(
                 scipy.stats.invgamma.rvs(shape, scale=scale, size=1)[0])
     
-    def loglik(self):
+    cpdef public float loglik(self):
         """ Log-likelihood function. """
+        cdef float bias
+        cdef Quote quote
         x = []
         for quote in self.quotes:
             bias = self.lr.predict(quote.z)
@@ -320,7 +284,7 @@ class Alpha(BaseParams):
                                 np.log(np.sqrt(2 * np.pi) * self.sigma))
         return ll
 
-class Beta(Alpha):
+cdef class Beta(Alpha):
     """ Parameters for the :math:`g` distribution on the :math:`V`.
     
     Parameters:
@@ -336,8 +300,9 @@ class Beta(Alpha):
         history (dict): A list of the sample history of parameters.
     
     """
+    cdef public int customer
     
-    def __init__(self, customer=0, mu=0, sigma=3):
+    def __init__(self, int customer=0, float mu=0, float sigma=3):
         super(Beta, self).__init__(mu=mu, sigma=sigma)
         self.customer = customer
         
@@ -346,7 +311,16 @@ class Beta(Alpha):
                             "nb_quotes": len(self.quotes)}
         return ("Beta_%(id)d: mu = %(mu).2f, sigma = %(sigma).2f, id = %(id)d, "
                         "nb_quotes = %(nb_quotes)s" % params)
-     
+    
+    def __reduce__(self):
+        _, _, d = Alpha.__reduce__(self)
+        d['customer'] = self.customer
+        return (Beta, (), d)
+
+    def __setstate__(self, d):
+        Alpha.__setstate__(self, d)
+        self.customer = d['customer']
+        
     def sample_mu(self):
         """ Sample self.mu. 
         
@@ -377,15 +351,17 @@ class Beta(Alpha):
             dbar += a
         ndV = len(self.quotes)
         
-        scale_prior = 20
-        shape_prior = 9
+        scale_prior = 30
+        shape_prior = 14
         scale = scale_prior + dbar / 2
         shape = shape_prior + ndV / 2
         self.sigma = np.sqrt(
                 scipy.stats.invgamma.rvs(shape, scale=scale, size=1)[0])
     
-    def loglik(self):
+    cpdef public float loglik(self):
         """ Likelihood function. """
+        cdef float bias
+        cdef Quote quote
         x = []
         for quote in self.quotes:
             bias = self.lr.predict(quote.z)
@@ -395,14 +371,19 @@ class Beta(Alpha):
                                 np.log(np.sqrt(2 * np.pi) * self.sigma))
         return ll
 
-
 def log_prior_SEP(x):
         if x[3] > 1 and x[3] <=2:
                 return 0
         else:
                 return -np.inf
 
-class AlphaSEP(BaseParams):
+
+cdef class AlphaSEP(BaseParams):
+    
+    cdef public float mu, sigma, beta, alpha 
+    cdef public BayesianLinearRegression lr
+    cdef public list quotes 
+    cdef public dict history
     
     def __init__(self, mu=0, sigma=2, beta=0, alpha=2):
         
@@ -420,6 +401,25 @@ class AlphaSEP(BaseParams):
         return ("alphaSEP: mu = %.2f, sigma = %.2f, beta = %.2f, alpha = %.2f, "
                         "nb_quotes = %d" % (self.mu, self.sigma, self.beta, self.alpha,
                                                                 len(self.quotes)))
+    def __reduce__(self):
+        d = {}
+        d['mu'] = self.mu
+        d['sigma'] = self.sigma
+        d['alpha'] = self.alpha
+        d['beta'] = self.beta
+        d['lr'] = self.lr
+        d['quotes'] = self.quotes
+        d['history'] = self.history
+        return (AlphaSEP, (), d)
+    
+    def __setstate__(self, d):
+        self.mu = d['mu']
+        self.sigma = d['sigma']
+        self.alpha = d['alpha']
+        self.beta = d['beta']
+        self.lr = d['lr']
+        self.quotes = d['quotes']
+        self.history = d['history']
     
     def get_params(self):
         return {"mu": self.mu, "sigma": self.sigma, "alpha": self.alpha,
@@ -432,7 +432,7 @@ class AlphaSEP(BaseParams):
         self.alpha = alpha
         self.beta = beta
 
-    def update_params(self):
+    cpdef update_params(self):
         """ Method to update the value ofthe parameters.
         
         The update is realised by sampling new values for the parameters based on
@@ -445,16 +445,19 @@ class AlphaSEP(BaseParams):
             self.history["alpha"].append(self.alpha)
             self.history["beta"].append(self.beta)
     
-    def sample_params(self, n_iter=100):
+    cpdef sample_params(self, n_iter=100):
+        cdef np.ndarray dw
         dW = []
         for quote in self.quotes:
             dw = quote.dW() - self.lr.predict(quote.z)
             dW.extend(dw)
         dW = np.array(dW)
         params_init = np.array([self.mu, self.sigma, self.beta, self.alpha])
-        samples = MetropolisHastings(n_iter, dW, likelihoodSEP,
-                                                                 params_init=params_init,
-                                                                 log_prior=log_prior_SEP)
+        samples = MetropolisHastings(n_iter,
+                                     dW,
+                                     likelihoodSEP,
+                                     params_init=params_init,
+                                     log_prior=log_prior_SEP)
         mu, sigma, beta, alpha = samples[-1]
         self.mu = mu
         self.sigma = sigma
@@ -474,7 +477,9 @@ class AlphaSEP(BaseParams):
         bias = self.lr.predict(z)
         return rSEP(self.mu, self.sigma, self.beta, self.alpha, size=size) + bias
     
-    def loglik(self):
+    cpdef public float loglik(self):
+        cdef float dw, bias
+        cdef Quote quote
         delta = []
         for quote in self.quotes:
             bias = self.lr.predict(quote.z)
@@ -484,13 +489,12 @@ class AlphaSEP(BaseParams):
         return np.sum(dSEP(delta, self.mu, self.sigma, self.beta, self.alpha, log=True))
 
 
-class Quote:
+cdef class Quote:
     """ Basic structure_cython for a quote's information. 
     
     Parameters:
         alpha (structure_cython.Alpha): Parameter class on the :math:`f`.
         beta (structure_cython.Beta): Parameter class on the :math:`g`.
-        qtype (str): Either Buy or Sell.
         I (string): Status of the RFQ, either `Done`, `TradedAway` or `NotDone`.
         J (string): Detailed status.
         Y (float): BNPPAnsweredPrice.
@@ -506,11 +510,18 @@ class Quote:
         V (float): Value attributed to the quote by the customer
         z (numpy.array): Vector of co-variates.
     """
+    
+    cdef public BaseParams alpha, beta
+    cdef public str qtype, I, J
+    cdef public float Y, C, CBBT, bid2mid
+    cdef public int customer, nb_dealers, max_reject
+    cdef public np.ndarray z
+    cdef public np.ndarray W
+    cdef public float V
 
-    def __init__(self, qtype, I, J, Y, C, CBBT, bid2mid, customer, nb_dealers,
-                             alpha, beta, covar=None):
-        
-        self.logger = logging.getLogger('bnpp.Quote')
+    def __init__(self, str qtype="Buy", str I="Done", str J="NA", float Y=0, float C=0, float CBBT=0, float bid2mid=1, int customer=1, int nb_dealers=2,
+                             BaseParams alpha=None, BaseParams beta=None, np.ndarray covar=None):
+                
         assert(qtype in ["Buy", "Sell"])
         
         self.alpha = alpha
@@ -528,32 +539,57 @@ class Quote:
         self.z = covar
         self.max_reject = 10000000
         self.init_VW()
-        self.logger.debug("Loaded %s" % self)
 
     def __str__(self):
-        return ("Quote: type = %s, I = %s, J = %s, Y = %.2f, C = %.2f, V = %.2f,"
-                "W = %s, Customer = %d, CBBT = %.2f, W ~ %s, V ~ %s" % 
-                (self.qtype,
-                 self.I,
-                 self.J,
-                 self.Y,
-                 self.C,
-                 self.V,
-                 "|".join("%.2f" % w for w in self.W),
-                 self.customer,
-                 self.CBBT,
-                 self.alpha,
-                 self.beta))
+        return ("Quote: type = %s, I = %s, J = %s, Y = %.2f, C = %.2f, V = %.2f, W = %s, "
+                        "Customer = %d, CBBT = %.2f, W ~ %s, V ~ %s" 
+                        % (self.qtype,
+                             self.I,
+                             self.J,
+                             self.Y,
+                             self.C,
+                             self.V,
+                             "|".join("%.2f" % w for w in self.W),
+                             self.customer,
+                             self.CBBT,
+                             self.alpha,
+                             self.beta))
     
-    def __getstate__(self):
-        d = dict(self.__dict__)
-        del d['logger']
-        return d
+    def __reduce__(self):
+        d = {}
+        d['alpha'] = self.alpha
+        d['beta'] = self.beta
+        d['qtype'] = self.qtype
+        d['I'] = self.I
+        d['J'] = self.J
+        d['Y'] = self.Y
+        d['C'] = self.C
+        d['CBBT'] = self.CBBT
+        d['bid2mid'] = self.bid2mid
+        d['customer'] = self.customer
+        d['nb_dealers'] = self.nb_dealers
+        d['z'] = self.z
+        d['max_reject'] = self.max_reject
+        d['V'] = self.V
+        d['W'] = self.W
+        return (Quote, (), d)
 
     def __setstate__(self, d):
-        self.__dict__.update(d)
-        self.logger = logging.getLogger('bnpp.Quote')
-    
+        self.alpha =    d['alpha']
+        self.beta = d['beta']
+        self.I = d['I'] 
+        self.J = d['J'] 
+        self.Y = d['Y']
+        self.C = d['C']
+        self.CBBT = d['CBBT']
+        self.bid2mid = d['bid2mid']
+        self.customer = d['customer']
+        self.nb_dealers = d['nb_dealers']
+        self.z = d['z']
+        self.max_reject = d['max_reject']
+        self.V = d['V']
+        self.W = d['W']
+	
     def rf(self, z=None):
         """ Samples from one of the dealers' distribution on latent values."""
         return self.bid2mid * self.alpha.rvs(size=1, z=z) + self.CBBT
@@ -567,7 +603,7 @@ class Quote:
             self._sellInit()
         if self.qtype == "Buy":
             self._buyInit()
-
+    
     def _buyInit(self):
         """ Initialise the latent variables of the model consistently with I."""
         if self.I == "Done" and self.C == 0:
@@ -687,7 +723,6 @@ class Quote:
         else:
             return 0
     
-    @deprecated
     def predictI(self):
         """ Probability of the RFQ status evaluated doing numerical integration.
         
@@ -695,7 +730,6 @@ class Quote:
             (float) The probability that the quote be in the "Done", "TradedAway" or 
             "NotTraded" state.
         """
-        self.logger.debug("Predicting RFQ status by Integrating...")
         I = {"Done": 0, "TradedAway": 0, "NotTraded": 0}
         Y = self.Y
         CBBT = self.CBBT
@@ -716,7 +750,6 @@ class Quote:
         
         return I
     
-    @deprecated
     def predictS(self, n_iter=100):
         """ Probability of the RFQ status evaluated from repeated sampling.
         
@@ -724,7 +757,6 @@ class Quote:
             (float) The probability that the quote be in the "Done", "TradedAway" or 
             "NotTraded" state.
         """
-        self.logger.debug("Predicting RFQ status by sampling...")
         I = {"Done": 0, "TradedAway": 0, "NotTraded": 0}
         for _ in range(n_iter):
             dW = self.alpha.rvs(size=self.nb_dealers, z=self.z)
@@ -750,8 +782,6 @@ class Quote:
             CaughtInLoop: The rejection sampling procedure failed for more than 
                 `max_reject` iterations.
         """
-        self.logger.debug(self)
-        self.logger.debug("Sampling W from %s" % self.alpha)
         for i in xrange(self.nb_dealers):
             n_reject = 0
             if i == 0 and self.I == "Done" and self.C != 0:
@@ -766,15 +796,8 @@ class Quote:
                 n_reject += 1
                 self.W[i] = self.rf(z=self.z)
                 if self.consistent():
-                    self.logger.debug("Sampled W_%d = %.2f in %d iterations."
-                                                        % (i, self.W[i], j))
                     break
                 if n_reject >= self.max_reject:
-                    self.logger.critical("Sampling W from N(%.2f, %.2f) - (b2m = %s)" % 
-                                        (self.bid2mid * self.alpha.mu + self.CBBT, 
-                                         self.bid2mid * self.alpha.sigma,
-                                         self.bid2mid))
-                    self.logger.critical(self)
                     raise CaughtInLoop("W caught in loop: n_reject = %d" % n_reject)
         return self.W
 
@@ -788,15 +811,10 @@ class Quote:
             CaughtInLoop: The rejection sampling procedure failed for more than 
                 `max_reject` iterations.
         """
-        self.logger.debug("Sampling V from g_%d = %s" % (self.customer, self.beta))
-        self.logger.debug(self)
         for j in xrange(self.max_reject):
             self.V = self.rg(z=self.z)
             if self.consistent():
-                self.logger.debug("Sampled V = %.2f in %d iterations - %s" 
-                                                    % (self.V, j, self.beta))
                 return self.V
-            self.logger.debug("V = %.2f was rejected" % self.V)
         raise CaughtInLoop("V caught in loop: n_reject = %d" % j)
          
     def dV(self):
