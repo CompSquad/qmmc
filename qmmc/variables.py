@@ -326,8 +326,6 @@ class LatentSampler(object):
     def sample(self):
         
         # Currently assigned values
-        V = np.empty(self.V.value.shape)
-        W = np.empty(self.W.value.shape)
         I = self.I.value
         Y = self.Y.value
         mu_V = self.mu_V.value
@@ -345,7 +343,7 @@ class LatentSampler(object):
         n_not_traded = sum(idx_not_traded)
         
         # Sampling
-        # Done case: Y < min(V, W)
+        # Done case: Y < min(V, W) <=> V < Y & W < Y
         W_lower = (Y[idx_done] - mu_W) / sigma_W
         W_done = truncated_normal(
                 W_lower, np.inf, loc=mu_W, scale=sigma_W, size=n_done)
@@ -354,23 +352,30 @@ class LatentSampler(object):
         V_done = truncated_normal(
                 V_lower, np.inf, loc=mu_V, scale=sigma_V, size=n_done)
         
-        # Traded away case: W < min(Y, V)
-        W_upper = (Y[idx_traded_away] - mu_W) / sigma_W
-        W_traded_away = truncated_normal(-np.inf, W_upper, loc=mu_W,
-                                         scale=sigma_W, size=n_traded_away)
+        # Traded away case: W < min(Y, V) = m
+        m = np.minimum(Y[idx_traded_away], self.V.value[idx_traded_away])
+        W_upper = (m - mu_W) / sigma_W
+        W_traded_away = truncated_normal(
+                -np.inf, W_upper, loc=mu_W, scale=sigma_W, size=n_traded_away)
         
         V_lower = (W_traded_away - mu_V) / sigma_V
         V_traded_away = truncated_normal(
                 V_lower, np.inf, loc=mu_V, scale=sigma_V, size=n_traded_away)
         
-        # Not traded case: V < min(W, Y)
-        W_not_traded = norm.rvs(loc=mu_W, scale=sigma_W, size=n_not_traded)
+        # Not traded case: V < min(W, Y) <=> W > V & V < Y
+        W_lower = (self.V.value[idx_not_traded] - mu_W) / sigma_W
+        W_not_traded = truncated_normal(
+                W_lower, np.inf, loc=mu_W, scale=sigma_W, size=n_not_traded)
         
-        V_upper = (np.minimum(Y[idx_not_traded], W_not_traded) - mu_V) / sigma_V
+        m = np.minimum(Y[idx_not_traded], W_not_traded)
+        V_upper = (m - mu_V) / sigma_V
         V_not_traded = truncated_normal(
                 -np.inf, V_upper, loc=mu_V, scale=sigma_V, size=n_not_traded)
         
         # Finally, assignment.
+        V = np.empty(self.V.value.shape)
+        W = np.empty(self.W.value.shape)
+        
         W[idx_done] = W_done
         W[idx_traded_away] = W_traded_away
         W[idx_not_traded] = W_not_traded
