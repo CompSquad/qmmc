@@ -1,9 +1,4 @@
-""" Function for computing the density and sampling from an EP or SEP.
-
-There are two types of EP parameterization implemented. The first one (`dEP`
-and `rEP` is consistent with the description on Wikipedia and is used to sample
-from an EP. The second one (`dEP2` and `rEP2`) follow the parameterization 
-described in ::Ref:: and is used as a subroutine to sample from an SEP. """
+""" Custom distributions."""
 
 __author__ = "arnaud.rachez@gmail.com"
 
@@ -13,16 +8,19 @@ from scipy.special import gamma, gammaincinv
 
 
 def dEP(x, mu=0, alpha=1, beta=1, log=False):
-    r""" Exponential Power (EP) density function.
+    """ Exponential Power (EP) density function.
 
-    See http://en.wikipedia.org/wiki/Generalized_normal_distribution. The density 
-    is written :math:`f_{EP} = e^{-\frac{\vert|x-\mu\vert|^{\beta}}{\alpha}}`
+    See http://en.wikipedia.org/wiki/Generalized_normal_distribution.
     
-    Arguments:
-        x (numpy.array): A vector of samples.
-        mu (float): Mean.
-        alpha (float): Scale parameter
-        beta (float): Shape
+    Arguments
+        x: ndarray
+            A vector of samples.
+        mu: float
+            Mean.
+        alpha: float
+            Scale parameter
+        beta (float):
+            Shape
     
     Returns:
         An array of densities.

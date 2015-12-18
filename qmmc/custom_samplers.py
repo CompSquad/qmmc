@@ -66,11 +66,13 @@ def _one_lower_truncated_normal2(m, mu_W, sigma_W, k, l):
     
     W_upper = (m - mu_W) / sigma_W
     W_traded_away = np.empty((k, l))
-    W_traded_away[:, 0] = _truncated_normal(
+    W_min = _truncated_normal(
             -np.inf, W_upper, loc=mu_W, scale=sigma_W,
             shape=(k, ))
-    W_traded_away[:, 1:] = norm.rvs(
-            loc=mu_W, scale=sigma_W, size=(k, l-1))
+    W_traded_away[:, 0] = W_min
+    W_traded_away[:, 1:] = _truncated_normal(
+            W_min,  np.inf, loc=mu_W, scale=sigma_W,
+            shape=(k, l-1))
     return W_traded_away
 
 
