@@ -37,12 +37,12 @@ class TestVariables(unittest.TestCase):
         n = 10
         lower = np.array(range(n))
         upper = np.inf
-        x = truncated_normal(lower, upper, loc=0, scale=1, size=n)
+        x = _truncated_normal(lower, upper, loc=0, scale=1, size=n)
         np.testing.assert_array_less(lower, x)
         
         lower = -np.inf
         upper = np.array(range(n))
-        x = truncated_normal(lower, upper, loc=0, scale=1, size=n)
+        x = _truncated_normal(lower, upper, loc=0, scale=1, size=n)
         np.testing.assert_array_less(x, upper)
         
 

@@ -4,7 +4,110 @@ __author__ = "arnaud.rachez@gmail.com"
 
 
 import numpy as np
-from scipy.stats import invgamma, norm
+from scipy.stats import invgamma, norm, truncnorm
+
+
+def _truncated_normal(lower, upper, loc, scale, shape):
+    
+    a = np.empty(shape)
+    
+    try:
+        m, n = shape
+        if np.isinf(lower).any():
+            for i in xrange(m):
+                a[i] = truncnorm.rvs(
+                        lower, upper[i], loc=loc, scale=scale, size=n)
+        elif np.isinf(upper).any():
+            for i in xrange(m):
+                a[i] = truncnorm.rvs(
+                        lower[i], upper, loc=loc, scale=scale, size=n)
+        else:
+            for i in xrange(m):
+                a[i] = truncnorm.rvs(
+                        lower[i], upper[i], loc=loc, scale=scale, size=n)
+    
+    except ValueError:
+        m = shape[0]
+        if np.isinf(lower).any():
+            for i in xrange(m):
+                a[i] = truncnorm.rvs(lower, upper[i], loc=loc, scale=scale)
+        elif np.isinf(upper).any():
+            for i in xrange(m):
+                a[i] = truncnorm.rvs(lower[i], upper, loc=loc, scale=scale)
+        else:
+            for i in xrange(m):
+                a[i] = truncnorm.rvs(lower[i], upper[i], loc=loc, scale=scale)
+    
+    return a
+
+
+def _one_lower_truncated_normal(m, mu_W, sigma_W, k, l):
+    """ Sample l normal variables w_j per line s.t. min(w_j) < m.
+    
+    Note: This seems to be working.
+    """
+
+    W_traded_away = norm.rvs(
+        loc=mu_W, scale=sigma_W, size=(k, l))
+      
+    idx_retry = np.min(W_traded_away, axis=1) > m
+    while sum(idx_retry) > 0:
+        W_traded_away[idx_retry] = norm.rvs(
+            loc=mu_W, scale=sigma_W, size=(sum(idx_retry), l))
+        idx_retry = np.min(W_traded_away, axis=1) > m
+    return W_traded_away
+
+
+def _one_lower_truncated_normal2(m, mu_W, sigma_W, k, l):
+    """ Sample l normal variables w_j per line s.t. min(w_j) < m.
+    
+    Note: This is not working.
+    """
+    
+    W_upper = (m - mu_W) / sigma_W
+    W_traded_away = np.empty((k, l))
+    W_traded_away[:, 0] = _truncated_normal(
+            -np.inf, W_upper, loc=mu_W, scale=sigma_W,
+            shape=(k, ))
+    W_traded_away[:, 1:] = norm.rvs(
+            loc=mu_W, scale=sigma_W, size=(k, l-1))
+    return W_traded_away
+
+
+def _sample_w(I, V, Y, mu_W, sigma_W, k, l):
+    
+    # Indices and lengths
+        idx_done = I == 2
+        idx_traded_away = I == 1
+        idx_not_traded = I == 0
+        
+        # Sampling
+        # Done case: Y < min(V, W) <=> V < Y & W < Y
+        W_lower = (Y[idx_done] - mu_W) / sigma_W
+        W_done = _truncated_normal(
+                W_lower, np.inf, loc=mu_W, scale=sigma_W,
+                shape=(sum(idx_done), l))
+        
+        # Traded away case: min(W) < min(Y, V) = m (Working)
+        m = np.minimum(Y[idx_traded_away], V[idx_traded_away])
+        W_traded_away = _one_lower_truncated_normal(
+                m, mu_W, sigma_W, sum(idx_traded_away), l)
+        
+
+        # Not traded case: min(W) > V (and Y > V)
+        W_lower = (V[idx_not_traded] - mu_W) / sigma_W
+        W_not_traded = _truncated_normal(
+                W_lower, np.inf, loc=mu_W, scale=sigma_W,
+                shape=(sum(idx_not_traded), l))
+        
+        # Finally, assignment.
+        W = np.empty((k, l))
+        
+        W[idx_done] = W_done
+        W[idx_traded_away] = W_traded_away
+        W[idx_not_traded] = W_not_traded
+        
+        return W
 
 
 class WSampler(object):
@@ -31,87 +134,10 @@ class WSampler(object):
         sigma_W = self.sigma.value
         
         k, l = W.shape
-        w = _sample_w2(I, V, Y, mu_W, sigma_W, k, l)
+        w = _sample_w(I, V, Y, mu_W, sigma_W, k, l)
         
         self.W.value = w
-        
 
-def _sample_w(I, V, Y, mu_W, sigma_W, k, l):
-    
-    # Indices and lengths
-        idx_done = I == 2
-        idx_traded_away = I == 1
-        idx_not_traded = I == 0
-        
-        # Sampling
-        # Done case: Y < min(V, W) <=> V < Y & W < Y
-        W_lower = (Y[idx_done] - mu_W) / sigma_W
-        W_done = truncated_normal(
-                W_lower, np.inf, loc=mu_W, scale=sigma_W,
-                shape=(sum(idx_done), l))
-        
-        # Traded away case: min(W) < min(Y, V) = m
-        W_traded_away = norm.rvs(
-                loc=mu_W, scale=sigma_W, size=(sum(idx_traded_away), l))
-        
-        m = np.minimum(Y[idx_traded_away], V[idx_traded_away])
-        idx_retry = np.min(W_traded_away, axis=1) > m
-        while sum(idx_retry) > 0:
-            W_traded_away[idx_retry] = norm.rvs(
-                loc=mu_W, scale=sigma_W, size=(sum(idx_retry), l))
-            idx_retry = np.min(W_traded_away[idx_retry], axis=1) > m[idx_retry]
-            
-#         idx_min_W = np.argmin(W_traded_away[idx_retry], axis=1)
-#         idx_min_W = np.random.randint(0, l, size=sum(idx_retry))
-# 
-#         W_upper = (m[idx_retry] - mu_W) / sigma_W
-#         W_traded_away[(idx_retry, idx_min_W)] = truncated_normal(
-#                 -np.inf, W_upper, loc=mu_W, scale=sigma_W,
-#                 shape=(sum(idx_retry), ))
-
-        # Not traded case: min(W) > V (and Y > V)
-        W_lower = (V[idx_not_traded] - mu_W) / sigma_W
-        W_not_traded = truncated_normal(
-                W_lower, np.inf, loc=mu_W, scale=sigma_W,
-                shape=(sum(idx_not_traded), l))
-        
-        # Finally, assignment.
-        W = np.empty((k, l))
-        
-        W[idx_done] = W_done
-        W[idx_traded_away] = W_traded_away
-        W[idx_not_traded] = W_not_traded
-        
-        return W
-
-def _consistent(Y, V, W):
-    d = np.empty(Y.shape, dtype=int)
-    
-    C = np.min(W, axis=1)
-    idx_done = Y <= np.minimum(C, V)
-    idx_traded_away = C <= np.minimum(Y, V)
-    idx_not_traded = V < np.minimum(C, Y)
-    
-    d[idx_not_traded] = 0
-    d[idx_traded_away] = 1
-    d[idx_done] = 2
-    return d
-
-def _sample_w2(I, V, Y, mu_W, sigma_W, k, l):
-    
-    W = norm.rvs(loc=mu_W, scale=sigma_W, size=(k, l))
-    
-    idx_retry = np.array([True] * k)
-    while sum(idx_retry) > 0:
-        W[idx_retry] = norm.rvs(
-                loc=mu_W, scale=sigma_W, size=(sum(idx_retry), l))
-        S = _consistent(Y, V, W)
-        idx_retry = S != I
-    
-    return W
-        
-    
-    
 
 class VSampler(object):
     
@@ -145,14 +171,14 @@ class VSampler(object):
         # Sampling
         # Done case: V < Y (and W > V)       
         V_lower = (Y[idx_done] - mu_V) / sigma_V
-        V_done = truncated_normal(
+        V_done = _truncated_normal(
                 V_lower, np.inf, loc=mu_V, scale=sigma_V,
                 shape=V[idx_done].shape)
         
         # Traded away case: V > min(W) (and min(W) < Y)
         C = np.min(W[idx_traded_away], axis=1)
         V_lower = (C - mu_V) / sigma_V
-        V_traded_away = truncated_normal(
+        V_traded_away = _truncated_normal(
                 V_lower, np.inf, loc=mu_V, scale=sigma_V,
                 shape=V[idx_traded_away].shape)
         
@@ -160,7 +186,7 @@ class VSampler(object):
         C = np.min(W[idx_not_traded], axis=1)
         m = np.minimum(Y[idx_not_traded], C)
         V_upper = (m - mu_V) / sigma_V
-        V_not_traded = truncated_normal(
+        V_not_traded = _truncated_normal(
                 -np.inf, V_upper, loc=mu_V, scale=sigma_V,
                 shape=V[idx_not_traded].shape)
         
@@ -220,37 +246,3 @@ class NormalConjugateSampler(object):
         shape = shape_0 + n / 2
         self.sigma.value = np.sqrt(invgamma.rvs(shape, scale=scale))
         self.history['sigma'].append(self.sigma.value)
-
-
-def truncated_normal(lower, upper, loc, scale, shape):
-    
-    a = np.empty(shape)
-    
-    try:
-        m, n = shape
-        if np.isinf(lower).any():
-            for i in xrange(m):
-                a[i] = truncnorm.rvs(
-                        lower, upper[i], loc=loc, scale=scale, size=n)
-        elif np.isinf(upper).any():
-            for i in xrange(m):
-                a[i] = truncnorm.rvs(
-                        lower[i], upper, loc=loc, scale=scale, size=n)
-        else:
-            for i in xrange(m):
-                a[i] = truncnorm.rvs(
-                        lower[i], upper[i], loc=loc, scale=scale, size=n)
-    
-    except ValueError:
-        m = shape[0]
-        if np.isinf(lower).any():
-            for i in xrange(m):
-                a[i] = truncnorm.rvs(lower, upper[i], loc=loc, scale=scale)
-        elif np.isinf(upper).any():
-            for i in xrange(m):
-                a[i] = truncnorm.rvs(lower[i], upper, loc=loc, scale=scale)
-        else:
-            for i in xrange(m):
-                a[i] = truncnorm.rvs(lower[i], upper[i], loc=loc, scale=scale)
-    
-    return a
