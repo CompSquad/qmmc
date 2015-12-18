@@ -43,35 +43,15 @@ def _truncated_normal(lower, upper, loc, scale, shape):
 
 def _one_lower_truncated_normal(m, mu_W, sigma_W, k, l):
     """ Sample l normal variables w_j per line s.t. min(w_j) < m.
-    
-    Note: This seems to be working.
-    """
-
-    W_traded_away = norm.rvs(
-        loc=mu_W, scale=sigma_W, size=(k, l))
-      
-    idx_retry = np.min(W_traded_away, axis=1) > m
-    while sum(idx_retry) > 0:
-        W_traded_away[idx_retry] = norm.rvs(
-            loc=mu_W, scale=sigma_W, size=(sum(idx_retry), l))
-        idx_retry = np.min(W_traded_away, axis=1) > m
-    return W_traded_away
-
-
-def _one_lower_truncated_normal2(m, mu_W, sigma_W, k, l):
-    """ Sample l normal variables w_j per line s.t. min(w_j) < m.
-    
-    Note: This is not working.
     """
     
-    W_upper = (m - mu_W) / sigma_W
     W_traded_away = np.empty((k, l))
-    W_min = _truncated_normal(
-            -np.inf, W_upper, loc=mu_W, scale=sigma_W,
-            shape=(k, ))
+    u = np.random.rand(k)
+    t = u * (1 - (1 - norm.cdf(m, loc=mu_W, scale=sigma_W))**l)
+    W_min = norm.ppf(1 - (1 - t)**(1. / l), loc=mu_W, scale=sigma_W)
     W_traded_away[:, 0] = W_min
     W_traded_away[:, 1:] = _truncated_normal(
-            W_min,  np.inf, loc=mu_W, scale=sigma_W,
+            (W_min - mu_W) / sigma_W,  np.inf, loc=mu_W, scale=sigma_W,
             shape=(k, l-1))
     return W_traded_away
 
@@ -79,37 +59,37 @@ def _one_lower_truncated_normal2(m, mu_W, sigma_W, k, l):
 def _sample_w(I, V, Y, mu_W, sigma_W, k, l):
     
     # Indices and lengths
-        idx_done = I == 2
-        idx_traded_away = I == 1
-        idx_not_traded = I == 0
-        
-        # Sampling
-        # Done case: Y < min(V, W) <=> V < Y & W < Y
-        W_lower = (Y[idx_done] - mu_W) / sigma_W
-        W_done = _truncated_normal(
-                W_lower, np.inf, loc=mu_W, scale=sigma_W,
-                shape=(sum(idx_done), l))
-        
-        # Traded away case: min(W) < min(Y, V) = m (Working)
-        m = np.minimum(Y[idx_traded_away], V[idx_traded_away])
-        W_traded_away = _one_lower_truncated_normal(
-                m, mu_W, sigma_W, sum(idx_traded_away), l)
-        
+    idx_done = I == 2
+    idx_traded_away = I == 1
+    idx_not_traded = I == 0
+    
+    # Sampling
+    # Done case: Y < min(V, W) <=> V < Y & W < Y
+    W_lower = (Y[idx_done] - mu_W) / sigma_W
+    W_done = _truncated_normal(
+            W_lower, np.inf, loc=mu_W, scale=sigma_W,
+            shape=(sum(idx_done), l))
+    
+    # Traded away case: min(W) < min(Y, V) = m (Working)
+    m = np.minimum(Y[idx_traded_away], V[idx_traded_away])
+    W_traded_away = _one_lower_truncated_normal(
+            m, mu_W, sigma_W, sum(idx_traded_away), l)
+    
 
-        # Not traded case: min(W) > V (and Y > V)
-        W_lower = (V[idx_not_traded] - mu_W) / sigma_W
-        W_not_traded = _truncated_normal(
-                W_lower, np.inf, loc=mu_W, scale=sigma_W,
-                shape=(sum(idx_not_traded), l))
-        
-        # Finally, assignment.
-        W = np.empty((k, l))
-        
-        W[idx_done] = W_done
-        W[idx_traded_away] = W_traded_away
-        W[idx_not_traded] = W_not_traded
-        
-        return W
+    # Not traded case: min(W) > V (and Y > V)
+    W_lower = (V[idx_not_traded] - mu_W) / sigma_W
+    W_not_traded = _truncated_normal(
+            W_lower, np.inf, loc=mu_W, scale=sigma_W,
+            shape=(sum(idx_not_traded), l))
+    
+    # Finally, assignment.
+    W = np.empty((k, l))
+    
+    W[idx_done] = W_done
+    W[idx_traded_away] = W_traded_away
+    W[idx_not_traded] = W_not_traded
+    
+    return W
 
 
 class WSampler(object):
