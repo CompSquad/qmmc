@@ -182,6 +182,46 @@ class VSampler(object):
         self.V.value = V
 
 
+def _decide(V, W, Y):
+    
+    if len(W) > 0:
+        C = np.min(W)
+    else:
+        C = np.inf
+    
+    if Y <= np.minimum(C, V):return 2
+    if C <= np.minimum(Y, V): return 1
+    if V < np.minimum(C, Y): return 0
+
+
+class KVWSampler(object):
+    
+    def __init__(self, k, V, W, Y, I):
+        
+        self.assigned = {k, V, W}
+        
+        self.k = k
+        self.V = V
+        self.W = W
+        self.Y = Y
+        self.I = I
+    
+    def sample(self):
+        
+        S = -1
+        I = self.I.value
+        while S != I:
+            self.k.sample()
+            self.V.sample()
+            self.W.sample()
+        
+            V = self.V.value
+            W = self.W.value
+            Y = self.Y.value
+        
+            S = _decide(V, W, Y)
+
+
 class NormalConjugateSampler(object):
     
     def __init__(self, mu, sigma):

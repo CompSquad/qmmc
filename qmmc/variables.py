@@ -157,7 +157,11 @@ class BernoulliFlip(BaseVariable):
 
     def _sample(self, p, x, size):
         
-        b = bernoulli.rvs(p, size=x.shape[0])
+        try:
+            size = x.shape[0]
+        except AttributeError:
+            size = None
+        b = bernoulli.rvs(p, size=size)
         self.value = (x + b) % self.k
         return self.value
 
@@ -222,6 +226,27 @@ class Normal(BaseVariable):
         return np.sum(norm.logpdf(value, loc=mu, scale=sigma))
 
 
+class BernoulliNormal(BaseVariable):
+    
+    def __init__(self, mu, sigma, k, value=None, observed=False, name=None,
+                 size=None):
+        
+        parents = {'mu': mu, 'sigma': sigma, 'k': k}
+        if size is not None:
+            raise ValueError("size is variable and cannot be specified.")
+        super(BernoulliNormal, self).__init__(
+            parents=parents, value=value, observed=observed, name=name,
+            size=size)
+    
+    def _sample(self, mu, sigma, k, size):
+        
+        return norm.rvs(loc=mu, scale=sigma, size=k) 
+
+    def _logp(self, value, mu, sigma, k):
+
+        return np.sum(norm.logpdf(value, loc=mu, scale=sigma))
+
+
 class InvGamma(BaseVariable):
 
     def __init__(self, shape, scale, value=None, observed=False, name=None,
@@ -240,4 +265,3 @@ class InvGamma(BaseVariable):
 
         return np.sum(invgamma.logpdf(value, shape, scale=scale))
 
-    
