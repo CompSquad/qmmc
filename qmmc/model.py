@@ -5,10 +5,8 @@ __author__ = "arnaud.rachez@gmail.com"
 from .samplers import NormalMHSampler
 
 class Model(object):
-    
-    def __init__(self, variables, samplers=None): 
 
-        self.lik = []
+    def __init__(self, variables, samplers=None): 
         
         # Variables to sample according to their posterior.
         self.variables = variables
@@ -31,19 +29,35 @@ class Model(object):
             if not var._deterministic and not var._observed:
                 self.samplers[var.name] = NormalMHSampler(var)
 
-    
     def logp(self):
-        """ Complete log-likelihood of stochastic variables."""
-        
+        """ Complete log-likelihood of stochastic variables.
+        """
         return sum(v.logp() for v in self.variables if not v._deterministic)
+    
+    def logp_custom(self):
+        
+        logp = 0
+        for v in self.variables:
+            if not v._deterministic:
+                if v.name not in {'V', 'W'}:
+                    logp += v.logp()
+
+        for s in self.samplers.itervalues():
+            if hasattr(s, 'W') or hasattr(s, 'V'):
+                logp += s.logp()
+        
+        return logp
 
     def estimate(self, n_iter):
+        
+        self.logp_hist = []
+        self.logp_custom_hist = []
         
         for i in xrange(n_iter):
             if i % 10 == 0:
                 print "{}%".format(int(i / float(n_iter) * 100)),
             for sampler in self.samplers.values():
                 sampler.sample()
-            self.lik.append(self.logp())
-        self.logp_history = self.lik
+            self.logp_hist.append(self.logp())
+            self.logp_custom_hist.append(self.logp_custom())
         print "100%"
