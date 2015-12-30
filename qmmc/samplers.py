@@ -5,7 +5,7 @@ __author__ = "arnaud.rachez@gmail.com"
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
-from scipy.stats import norm
+from scipy.stats import invgamma, norm
 
 
 
@@ -55,6 +55,10 @@ class MHSampler(object):
         
         self.history.append(self.variable.value)
     
+    def logp(self):
+        
+        return self.variable.logp()
+    
     def get_history(self):
         
         return self.history
@@ -72,3 +76,52 @@ class NormalMHSampler(MHSampler):
         scaling = self.scaling
         value = self.variable.value + norm.rvs(loc=0, scale=scaling, size=size)
         self.variable.value = value
+
+
+class NormalConjugateSampler(object):
+    
+    def __init__(self, mu, sigma):
+        
+        self.assigned = {mu, sigma}
+        self.mu = mu
+        self.sigma = sigma
+        self.history = {'mu': [], 'sigma': []}
+        
+    def sample(self):
+        
+        mu_0 = self.mu.parents['mu'].value
+        sigma_0 = self.mu.parents['sigma'].value
+        scale_0 = self.sigma.parents['scale'].value
+        shape_0 = self.sigma.parents['shape'].value
+        mu = self.mu.value
+        sigma = self.sigma.value
+            
+        
+        # Sample mu
+        s = 0.
+        n = 0.
+        
+        children = self.mu.children
+        for child in children:
+            s += np.sum(child.value)
+            n += np.product(child.value.shape)
+        
+        loc = (mu_0 / sigma_0**2 + s / sigma**2) / (1. / sigma_0**2 + n / sigma**2)
+        scale = np.sqrt(1. / (1. / sigma_0**2 + n / sigma**2))
+        
+        self.mu.value = norm.rvs(loc=loc, scale=scale)
+        self.history['mu'].append(self.mu.value)
+        
+        # Sample sigma
+        m = 0.
+        n = 0.
+        children = self.sigma.children
+        for child in children:
+            m += np.sum((child.value - mu)**2)
+            n += np.product(child.value.shape) 
+        
+        scale = scale_0 + m / 2
+        shape = shape_0 + n / 2
+        self.sigma.value = np.sqrt(invgamma.rvs(shape, scale=scale))
+        self.history['sigma'].append(self.sigma.value)
+

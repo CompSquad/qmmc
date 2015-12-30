@@ -4,7 +4,7 @@ __author__ = "arnaud.rachez@gmail.com"
 
 
 import numpy as np
-from scipy.stats import invgamma, norm, truncnorm
+from scipy.stats import norm, truncnorm
 
 
 def _truncnorm_rvs(lower, upper, loc, scale, shape):
@@ -319,54 +319,62 @@ def _decide(V, W, Y):
     if V < np.minimum(C, Y): return 0
 
 
+def _sample_k(k, I):
+    
+    kv = k.sample()
+    if I == 1:
+        while kv == 0:
+            kv = k.sample()
+    return kv
+
+
 def _sample_w_single(I, V, Y, mu_W, sigma_W, l):
+    
+    if l == 0:
+        return norm.rvs(0, 1, size=0)
 
     # Done case: Y < min(V, W) <=> V < Y & W < Y
     if I == 2:
         W_lower = (Y - mu_W) / sigma_W
-        W = _truncnorm_rvs(
-                W_lower, np.inf, loc=mu_W, scale=sigma_W, shape=(1, l))
+        W = truncnorm.rvs(W_lower, np.inf, loc=mu_W, scale=sigma_W, size=l)
     
     # Traded away case: min(W) < min(Y, V) = m (Working)
     elif I == 1:
         m = np.minimum(Y, V)
-        W = _mintruncnorm_rvs(m, mu_W, sigma_W, shape=(1, l))
+        W = _mintruncnorm_rvs(m, mu_W, sigma_W, shape=(1, l))[0, :]
     
-
     # Not traded case: min(W) > V (and Y > V)
     elif I == 0:
         W_lower = (V - mu_W) / sigma_W
-        W = _truncnorm_rvs(
-                W_lower, np.inf, loc=mu_W, scale=sigma_W, shape=(1, l))
+        W = truncnorm.rvs(W_lower, np.inf, loc=mu_W, scale=sigma_W, size=l)
 
     return W
 
 
 def _logp_w_single(I, V, W, Y, mu_W, sigma_W):
-
-    _, l = W.shape
     
     # Done case: Y < min(V, W) => min(W) > Y
     if I == 2:
         W_lower = (Y - mu_W) / sigma_W
-        logp = _truncnorm_logpdf(W, W_lower, np.inf, loc=mu_W, scale=sigma_W)
+        logp = truncnorm.logpdf(W, W_lower, np.inf, loc=mu_W, scale=sigma_W)
     
     # Traded away case: min(W) < min(Y, V) = m (Working)
     elif I == 1:
+        l = W.shape[0]
         m = np.minimum(Y, V)
         F_0_m = 1 - (1 - norm.cdf(m, mu_W, sigma_W))
         logp = np.sum(
                 np.log(1. / F_0_m * l)
-                + norm.logpdf(W[:, 0], loc=mu_W, scale=sigma_W)
-                + np.log((1 - norm.cdf(W[:, 0], loc=mu_W, scale=sigma_W))**(l-1))
+                + norm.logpdf(W[0], loc=mu_W, scale=sigma_W)
+                + np.log((1 - norm.cdf(W[1:], loc=mu_W, scale=sigma_W))**(l-1))
                 )
     
     # Not traded case: min(W) > V (and Y > V)
     elif I == 0:
         W_lower = (V - mu_W) / sigma_W
-        logp = _truncnorm_logpdf(W, W_lower, np.inf, loc=mu_W, scale=sigma_W)
+        logp = truncnorm.logpdf(W, W_lower, np.inf, loc=mu_W, scale=sigma_W)
     
-    return logp
+    return np.sum(logp)
 
 
 def _sample_v_single(I, W, Y, mu_V, sigma_V):
@@ -383,8 +391,8 @@ def _sample_v_single(I, W, Y, mu_V, sigma_V):
         V = truncnorm.rvs(V_lower, np.inf, loc=mu_V, scale=sigma_V)
     
     # Not traded case: V < min(min(W), Y)
-    elif I == 3:
-        C = np.min(W)
+    elif I == 0:
+        C = np.min(W) if len(W) > 0 else np.inf
         m = np.minimum(Y, C)
         V_upper = (m - mu_V) / sigma_V
         V = truncnorm.rvs(-np.inf, V_upper, loc=mu_V, scale=sigma_V)
@@ -407,7 +415,7 @@ def _logp_v_single(I, V, W, Y, mu_V, sigma_V):
     
     # Not traded case: V < min(min(W), Y)
     elif I == 0:
-        C = np.min(W)
+        C = np.min(W) if W.shape[0] > 0 else np.inf
         m = np.minimum(Y, C)
         V_upper = (m - mu_V) / sigma_V
         logp = truncnorm.logpdf(V, -np.inf, V_upper, loc=mu_V, scale=sigma_V)
@@ -429,22 +437,35 @@ class KVWSampler(object):
     
     def sample(self):
         
+        S = -1
         I = self.I.value
-        Y = self.Y.value
-        W = self.W.value
+        while S != I:
+            self.k.sample()
+            self.V.sample()
+            self.W.sample()
         
-        mu_V = self.V.parents['mu'].value
-        sigma_V = self.V.parents['sigma'].value
-        mu_W = self.W.parents['mu'].value
-        sigma_W = self.W.parents['sigma'].value
+            V = self.V.value
+            W = self.W.value
+            Y = self.Y.value
         
-        k = self.k.sample()
+            S = _decide(V, W, Y)
         
-        V = _sample_v_single(I, W, Y, mu_V, sigma_V)
-        self.V.value = V
-        
-        W = _sample_w_single(I, V, Y, mu_W, sigma_W, k)
-        self.W.value = W
+#         I = self.I.value
+#         Y = self.Y.value
+#         V = self.V.value
+#         
+#         mu_V = self.V.parents['mu'].value
+#         sigma_V = self.V.parents['sigma'].value
+#         mu_W = self.W.parents['mu'].value
+#         sigma_W = self.W.parents['sigma'].value
+#         
+#         k = _sample_k(self.k, I)
+#         
+#         W = _sample_w_single(I, V, Y, mu_W, sigma_W, k)
+#         self.W.value = W
+#         
+#         V = _sample_v_single(I, W, Y, mu_V, sigma_V)
+#         self.V.value = V
 
     def logp(self):
         
@@ -453,60 +474,13 @@ class KVWSampler(object):
         W = self.W.value
         Y = self.Y.value
         
-        mu_W = W.parents['mu'].value
-        sigma_W = W.parents['sigma'].value
-        mu_V = V.parents['mu'].value
-        sigma_V = V.parents['sigma'].value
+        mu_W = self.W.parents['mu'].value
+        sigma_W = self.W.parents['sigma'].value
+        mu_V = self.V.parents['mu'].value
+        sigma_V = self.V.parents['sigma'].value
         
         logp_w = _logp_w_single(I, V, W, Y, mu_W, sigma_W)
         logp_v = _logp_v_single(I, V, W, Y, mu_V, sigma_V)
         
         return logp_v + logp_w
 
-
-class NormalConjugateSampler(object):
-    
-    def __init__(self, mu, sigma):
-        
-        self.assigned = {mu, sigma}
-        self.mu = mu
-        self.sigma = sigma
-        self.history = {'mu': [], 'sigma': []}
-        
-    def sample(self):
-        
-        mu_0 = self.mu.parents['mu'].value
-        sigma_0 = self.mu.parents['sigma'].value
-        scale_0 = self.sigma.parents['scale'].value
-        shape_0 = self.sigma.parents['shape'].value
-        mu = self.mu.value
-        sigma = self.sigma.value
-            
-        
-        # Sample mu
-        s = 0.
-        n = 0.
-        
-        children = self.mu.children
-        for child in children:
-            s += np.sum(child.value)
-            n += np.product(child.value.shape)
-        
-        loc = (mu_0 / sigma_0**2 + s / sigma**2) / (1. / sigma_0**2 + n / sigma**2)
-        scale = np.sqrt(1. / (1. / sigma_0**2 + n / sigma**2))
-        
-        self.mu.value = norm.rvs(loc=loc, scale=scale)
-        self.history['mu'].append(self.mu.value)
-        
-        # Sample sigma
-        m = 0.
-        n = 0.
-        children = self.sigma.children
-        for child in children:
-            m += np.sum((child.value - mu)**2)
-            n += np.product(child.value.shape) 
-        
-        scale = scale_0 + m / 2
-        shape = shape_0 + n / 2
-        self.sigma.value = np.sqrt(invgamma.rvs(shape, scale=scale))
-        self.history['sigma'].append(self.sigma.value)
