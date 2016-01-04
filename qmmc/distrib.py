@@ -9,6 +9,7 @@ from scipy.stats import beta, norm, truncnorm, uniform
 
 
 def ep_rvs(mu=0, alpha=1, beta=1, size=1):
+
     u = uniform.rvs(loc=0, scale=1, size=size)
     z = 2 *    np.abs(u - 1. / 2)
     z = gammaincinv(1. / beta, z)
@@ -17,25 +18,26 @@ def ep_rvs(mu=0, alpha=1, beta=1, size=1):
 
 
 def ep_logpdf(x, mu=0, alpha=1., beta=1.):
-    
+
     Z = (beta / (2 * alpha * gamma(1. / beta)))
     ker = np.exp(-(np.abs(x - mu) / alpha)**beta)
     logp = np.log(Z * ker)
-    
+
     return logp
 
 
 def ep2_rvs(mu, sigma, alpha, size=1):
+
     u = uniform.rvs(loc=0, scale=1, size=size)
     b = beta.rvs(1. / alpha, 1 - 1. / alpha, size=size)
     r = np.sign(uniform.rvs(loc=0, scale=1, size=size) - .5)
     z = r * (-alpha * b * np.log(u))**(1. / alpha)
-    
+
     return z
 
 
 def ep2_logpdf(x, mu=0, sigma=1, alpha=2):
-    
+
     z = (x - mu) / sigma
     c = 2 * alpha**(1. / alpha - 1) * gamma(1. / alpha)
     d = np.exp(-np.abs(z)**alpha / alpha) / (sigma * c)
@@ -48,7 +50,7 @@ def sep_rvs(mu=0, sigma=1, beta=0, alpha=2, size=1):
     w = np.sign(y) * np.abs(y)**(alpha / 2) * beta * np.sqrt(2. / alpha)
     r = - np.sign(uniform.rvs(loc=0, scale=1, size=size) - scipy.stats.norm.cdf(w))
     z = r * y
-    
+
     return mu + sigma * z
 
 
@@ -58,14 +60,14 @@ def sep_logpdf(x, mu=0., sigma=1., beta=0, alpha=2):
     w = np.sign(z) * np.abs(z)**(alpha / 2) * beta * np.sqrt(2. / alpha)
     # Note: There is a sigma division in the paper
     logp = np.log(2) + norm.logcdf(w) + ep2_logpdf(x, mu, sigma, alpha)
-    
+
     return logp
-    
+
 
 def truncnorm_rvs(lower, upper, loc, scale, shape):
-    
+
     a = np.empty(shape)
-    
+
     try:
         m, n = shape
         if np.isinf(lower).any():
@@ -80,7 +82,7 @@ def truncnorm_rvs(lower, upper, loc, scale, shape):
             for i in xrange(m):
                 a[i] = truncnorm.rvs(
                         lower[i], upper[i], loc=loc, scale=scale, size=n)
-    
+
     except ValueError:
         m = shape[0]
         if np.isinf(lower).any():
@@ -92,12 +94,12 @@ def truncnorm_rvs(lower, upper, loc, scale, shape):
         else:
             for i in xrange(m):
                 a[i] = truncnorm.rvs(lower[i], upper[i], loc=loc, scale=scale)
-    
+
     return a
 
 
 def truncnorm_logpdf(value, lower, upper, loc, scale):
-    
+
     logp = 0
     try:
         m, n = value.shape
@@ -128,14 +130,14 @@ def truncnorm_logpdf(value, lower, upper, loc, scale):
             for i in xrange(m):
                 logp += truncnorm.logpdf(
                         value[i], lower[i], upper[i], loc=loc, scale=scale)
-    
+
     return np.sum(logp)
 
 
 def mintruncnorm_rvs(m, mu_W, sigma_W, shape):
     """ Sample l normal variables w_j per line s.t. min(w_j) < m.
     """
-    
+
     k, l = shape
     W_traded_away = np.empty((k, l))
     u = np.random.rand(k)
@@ -149,13 +151,13 @@ def mintruncnorm_rvs(m, mu_W, sigma_W, shape):
 
 
 def mintruncnorm_logpdf(W, m, mu_W, sigma_W):
-    
+
     l = W.shape[0]
     F_0_m = 1 - (1 - norm.cdf(m, mu_W, sigma_W))
     logp = np.sum(
             np.log(1. / F_0_m * l)
             + norm.logpdf(W[0], loc=mu_W, scale=sigma_W)
             + np.log((1 - norm.cdf(W[1:], loc=mu_W, scale=sigma_W))**(l-1)))
-    
+
     return logp
 
