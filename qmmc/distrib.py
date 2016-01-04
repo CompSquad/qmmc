@@ -52,7 +52,7 @@ def sep_rvs(mu=0, sigma=1, beta=0, alpha=2, size=1):
     return mu + sigma * z
 
 
-def sep_logpdf(x, mu=0., sigma=1., beta=0, alpha=2, log=False):
+def sep_logpdf(x, mu=0., sigma=1., beta=0, alpha=2):
 
     z = (x - mu) / sigma
     w = np.sign(z) * np.abs(z)**(alpha / 2) * beta * np.sqrt(2. / alpha)

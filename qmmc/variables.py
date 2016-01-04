@@ -7,7 +7,8 @@ from copy import copy
 from inspect import getargspec
 
 import numpy as np
-from scipy.stats import beta, invgamma, norm, binom, bernoulli
+from scipy.stats import beta, invgamma, laplace, norm, binom, bernoulli
+from qmmc.distrib import sep_rvs, sep_logpdf
 
 
 class Error(Exception):
@@ -207,6 +208,25 @@ class Binomial(BaseVariable):
         return np.sum(binom.logpmf(value, k, p, loc=0))
 
 
+class InvGamma(BaseVariable):
+
+    def __init__(self, shape, scale, value=None, observed=False, name=None,
+                 size=None):
+
+        parents = {'shape': shape, 'scale': scale}
+        super(InvGamma, self).__init__(
+            parents=parents, value=value, observed=observed, name=name,
+            size=size)
+
+    def _sample(self, shape, scale, size):
+
+        return invgamma.rvs(shape, scale=scale, size=size)
+
+    def _logp(self, value, shape, scale):
+
+        return np.sum(invgamma.logpdf(value, shape, scale=scale))
+
+
 class Normal(BaseVariable):
 
     def __init__(self, mu, sigma, value=None, observed=False, name=None,
@@ -247,20 +267,87 @@ class BernoulliNormal(BaseVariable):
         return np.sum(norm.logpdf(value, loc=mu, scale=sigma))
 
 
-class InvGamma(BaseVariable):
-
-    def __init__(self, shape, scale, value=None, observed=False, name=None,
+class Laplace(BaseVariable):
+    
+    def __init__(self, loc, scale, value=None, observed=False, name=None,
                  size=None):
-
-        parents = {'shape': shape, 'scale': scale}
-        super(InvGamma, self).__init__(
+        
+        parents = {'loc': loc, 'scale': scale}
+        super(Laplace, self).__init__(
             parents=parents, value=value, observed=observed, name=name,
             size=size)
+        
+    def _sample(self, loc, scale, size):
 
-    def _sample(self, shape, scale, size):
+        return laplace.rvs(loc=loc, scale=scale, size=size)
 
-        return invgamma.rvs(shape, scale=scale, size=size)
+    def _logp(self, value, loc, scale):
 
-    def _logp(self, value, shape, scale):
+        return np.sum(laplace.logpdf(value, loc=loc, scale=scale))  
 
-        return np.sum(invgamma.logpdf(value, shape, scale=scale))
+
+class BernoulliLaplace(BaseVariable):
+    
+    def __init__(self, loc, scale, k, value=None, observed=False, name=None,
+                 size=None):
+        
+        parents = {'loc': loc, 'scale': scale, 'k': k}
+        if size is not None:
+            raise ValueError("size is variable and cannot be specified.")
+        super(BernoulliLaplace, self).__init__(
+            parents=parents, value=value, observed=observed, name=name,
+            size=size)
+    
+    def _sample(self, loc, scale, k, size):
+        
+        return laplace.rvs(loc=loc, scale=scale, size=k) 
+
+    def _logp(self, value, loc, scale, k):
+
+        return np.sum(norm.logpdf(value, loc=loc, scale=scale))
+
+
+class SEP(BaseVariable):
+    
+    def __init__(self, mu, sigma, beta, alpha, value=None, observed=False,
+                 name=None, size=None):
+        
+        parents = {'mu': mu, 'sigma': sigma, 'beta': beta, 'alpha': alpha}
+        if size is not None:
+            raise ValueError("size is variable and cannot be specified.")
+        super(SEP, self).__init__(
+            parents=parents, value=value, observed=observed, name=name,
+            size=size)
+    
+    def _sample(self, mu, sigma, beta, alpha, size):
+        
+        return sep_rvs(mu=mu, sigma=sigma, beta=beta, alpha=alpha, size=size) 
+
+    def _logp(self, value, mu, sigma, beta, alpha):
+        
+        logp = sep_logpdf(value, mu=mu, sigma=sigma, beta=beta, alpha=alpha)
+        return np.sum(logp)
+
+
+class BernoulliSEP(BaseVariable):
+
+    def __init__(self, mu, sigma, beta, alpha, k, value=None, observed=False,
+                 name=None, size=None):
+        
+        parents = {'mu': mu, 'sigma': sigma, 'beta': beta, 'alpha': alpha,
+                   'k': k}
+        if size is not None:
+            raise ValueError("size is variable and cannot be specified.")
+        super(BernoulliSEP, self).__init__(
+            parents=parents, value=value, observed=observed, name=name,
+            size=size)
+    
+    def _sample(self, mu, sigma, beta, alpha, k, size):
+        
+        return sep_rvs(mu=mu, sigma=sigma, beta=beta, alpha=alpha, size=k) 
+
+    def _logp(self, value, mu, sigma, beta, alpha):
+        
+        logp = sep_logpdf(value, mu=mu, sigma=sigma, beta=beta, alpha=alpha)
+        return np.sum(logp)
+
