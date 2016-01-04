@@ -9,7 +9,7 @@ from scipy.stats import beta, norm, truncnorm, uniform
 
 
 def ep_rvs(mu=0, alpha=1, beta=1, size=1):
-    u = uniform.rvs(loc=0, scale=1, size)
+    u = uniform.rvs(loc=0, scale=1, size=size)
     z = 2 *    np.abs(u - 1. / 2)
     z = gammaincinv(1. / beta, z)
     y = mu + np.sign(u - 1. / 2) * alpha * z**(1. / beta)
@@ -26,9 +26,9 @@ def ep_logpdf(x, mu=0, alpha=1., beta=1.):
 
 
 def ep2_rvs(mu, sigma, alpha, size=1):
-    u = uniform.rvs(loc=0, scale=1, size)
+    u = uniform.rvs(loc=0, scale=1, size=size)
     b = beta.rvs(1. / alpha, 1 - 1. / alpha, size=size)
-    r = np.sign(uniform.rvs(loc=0, scale=1, size) - .5)
+    r = np.sign(uniform.rvs(loc=0, scale=1, size=size) - .5)
     z = r * (-alpha * b * np.log(u))**(1. / alpha)
     
     return z
@@ -46,7 +46,7 @@ def sep_rvs(mu=0, sigma=1, beta=0, alpha=2, size=1):
 
     y = ep2_rvs(0, 1, alpha, size=size)
     w = np.sign(y) * np.abs(y)**(alpha / 2) * beta * np.sqrt(2. / alpha)
-    r = - np.sign(uniform.rvs(loc=0, scale=1, size) - scipy.stats.norm.cdf(w))
+    r = - np.sign(uniform.rvs(loc=0, scale=1, size=size) - scipy.stats.norm.cdf(w))
     z = r * y
     
     return mu + sigma * z

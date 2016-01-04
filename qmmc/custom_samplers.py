@@ -342,11 +342,11 @@ def _sample_kvw_from_prior(I, k, V, W, Y):
         V.sample()
         W.sample()
     
-        V = V.value
-        W = W.value
-        Y = Y.value
+        v = V.value
+        w = W.value
+        y = Y.value
     
-        S = _decide(V, W, Y)
+        S = _decide(v, w, y)
 
 
 def _sample_kvw_from_conditional(I, k, V, W, Y):

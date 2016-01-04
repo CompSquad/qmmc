@@ -264,4 +264,3 @@ class InvGamma(BaseVariable):
     def _logp(self, value, shape, scale):
 
         return np.sum(invgamma.logpdf(value, shape, scale=scale))
-

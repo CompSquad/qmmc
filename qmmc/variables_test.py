@@ -3,8 +3,8 @@ import unittest
 import numpy as np
 from numpy.testing import assert_array_less
 
-from .variables import Value, Normal, BernoulliNormal, Beta, Binomial
-from .custom_samplers import truncnorm_rvs
+from qmmc.variables import Value, Normal, BernoulliNormal, Beta, Binomial
+from qmmc.distrib import truncnorm_rvs
 
 class TestVariables(unittest.TestCase):
 
