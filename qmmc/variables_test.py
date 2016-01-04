@@ -4,7 +4,7 @@ import numpy as np
 from numpy.testing import assert_array_less
 
 from .variables import Value, Normal, BernoulliNormal, Beta, Binomial
-from .custom_samplers import _truncnorm_rvs
+from .custom_samplers import truncnorm_rvs
 
 class TestVariables(unittest.TestCase):
 
@@ -39,12 +39,12 @@ class TestVariables(unittest.TestCase):
         n = 10
         lower = np.array(range(n))
         upper = np.inf
-        x = _truncnorm_rvs(lower, upper, loc=0, scale=1, shape=(n, ))
+        x = truncnorm_rvs(lower, upper, loc=0, scale=1, shape=(n, ))
         assert_array_less(lower, x)
         
         lower = -np.inf
         upper = np.array(range(n))
-        x = _truncnorm_rvs(lower, upper, loc=0, scale=1, shape=(n, ))
+        x = truncnorm_rvs(lower, upper, loc=0, scale=1, shape=(n, ))
         np.testing.assert_array_less(x, upper)
     
     

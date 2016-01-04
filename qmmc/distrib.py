@@ -5,233 +5,157 @@ __author__ = "arnaud.rachez@gmail.com"
 import numpy as np
 import scipy.stats
 from scipy.special import gamma, gammaincinv
+from scipy.stats import beta, norm, truncnorm, uniform
 
 
-def dEP(x, mu=0, alpha=1, beta=1, log=False):
-    """ Exponential Power (EP) density function.
-
-    See http://en.wikipedia.org/wiki/Generalized_normal_distribution.
-    
-    Arguments
-        x: ndarray
-            A vector of samples.
-        mu: float
-            Mean.
-        alpha: float
-            Scale parameter
-        beta (float):
-            Shape
-    
-    Returns:
-        An array of densities.
-    """
-    mu, alpha, beta = float(mu), float(alpha), float(beta)
-    if log == False:
-        return ((beta / (2 * alpha * gamma(1. / beta))) * 
-                        np.exp(-(np.abs(x - mu) / alpha)**beta))
-    else:
-        return np.log((beta / (2 * alpha * gamma(1. / beta))) *
-                                     np.exp(-(np.abs(x - mu) / alpha)**beta))
-
-def rEP(mu=0, alpha=1, beta=1, size=1):
-    r""" Samples from an Exponential Power (EP) distribution.
-
-    The parameterization used here is consistent with the `qmmc.distrib.dEP`
-    function.
-    
-    Arguments:
-        mu (float): Mean.
-        alpha (float): Scale parameter
-        beta (float): Shape
-        size (int): The number of samples to return.
-        
-    Returns:
-        An array of samples.
-    """
-    if size == 1:
-        u = np.random.rand()
-    else:
-        u = np.random.rand(size)
+def ep_rvs(mu=0, alpha=1, beta=1, size=1):
+    u = uniform.rvs(loc=0, scale=1, size)
     z = 2 *    np.abs(u - 1. / 2)
     z = gammaincinv(1. / beta, z)
     y = mu + np.sign(u - 1. / 2) * alpha * z**(1. / beta)
     return y
 
-def rEP2(mu, sigma, alpha, size=1):
-    r""" Samples from an Exponential Power (EP) distribution.
 
-    The parameterization used here is consistent with the `qmmc.distrib.dEP2`
-    function.
+def ep_logpdf(x, mu=0, alpha=1., beta=1.):
     
-    Arguments:
-        mu (float): Mean.
-        alpha (float): Scale parameter
-        beta (float): Shape
-        size (int): The number of samples to return.
-        
-    Returns:
-        An array of samlpes.
-    """
-    mu, sigma, alpha = float(mu), float(sigma), float(alpha)
-    if size == 1:
-        u = np.random.rand()
-        b = np.random.beta(1. / alpha, 1 - 1. / alpha)
-        r = np.sign(np.random.rand() - .5)
-    else:
-        u = np.random.rand(size)
-        b = np.random.beta(1. / alpha, 1 - 1. / alpha, size=size)
-        r = np.sign(np.random.rand(size) - .5)
-    return r * (-alpha * b * np.log(u))**(1. / alpha)
+    Z = (beta / (2 * alpha * gamma(1. / beta)))
+    ker = np.exp(-(np.abs(x - mu) / alpha)**beta)
+    logp = np.log(Z * ker)
+    
+    return logp
 
-def dEP2(x, mu=0, sigma=1, alpha=2, log=False):
-    r""" Exponential Power (EP) density function. 
+
+def ep2_rvs(mu, sigma, alpha, size=1):
+    u = uniform.rvs(loc=0, scale=1, size)
+    b = beta.rvs(1. / alpha, 1 - 1. / alpha, size=size)
+    r = np.sign(uniform.rvs(loc=0, scale=1, size) - .5)
+    z = r * (-alpha * b * np.log(u))**(1. / alpha)
     
-    The parameterization chosen here is consistent with ::Ref::.
+    return z
+
+
+def ep2_logpdf(x, mu=0, sigma=1, alpha=2):
     
-    The form of the density is :math:`f_{EP} = \frac{1}{c\sigma}e^{-\frac{|z|^{\alpha}}{\alpha}}`
-    where :math:`z = \frac{(x - \mu)}{\sigma}` and :math:`c = 2\alpha^{1/{\alpha}-1}\Gamma(1/\alpha)`.
-    
-    Arguments:
-        x (numpy.array): A vector of samples.
-        mu (float): Mean.
-        alpha (float): Scale parameter
-        beta (float): Shape
-        log (bool): Whether to return the logarithm of the density.
-    
-    Returns:
-        An array of densities.
-    """
     z = (x - mu) / sigma
     c = 2 * alpha**(1. / alpha - 1) * gamma(1. / alpha)
     d = np.exp(-np.abs(z)**alpha / alpha) / (sigma * c)
-    if log == False:
-        return d
-    else:
-        return np.log(d)
+    return np.log(d)
 
-def rSEP(mu=0, sigma=1, beta=0, alpha=2, size=1):
-    """ Samples from a Skew Exponentional Power distribution (SEP).
-    
-    The density of the SEP is :math:`f_{SEP} = 2\Phi(w)f_{EP}(x, \mu, \sigma, \alpha)`
-    
-    Arguments:
-        mu (float): Mode
-        sigma (float): Sigma
-        alpha (float): Alpha
-        beta (float): Beta
-        size (int): Number of samples to draw.
-    
-    Returns:
-        An array of samples from an SEP.
-    """
-    mu, sigma, beta, alpha = float(mu), float(sigma), float(beta), float(alpha)
-    y = rEP2(0, 1, alpha, size=size)
+
+def sep_rvs(mu=0, sigma=1, beta=0, alpha=2, size=1):
+
+    y = ep2_rvs(0, 1, alpha, size=size)
     w = np.sign(y) * np.abs(y)**(alpha / 2) * beta * np.sqrt(2. / alpha)
-    if size == 1:
-        r = - np.sign(np.random.rand() - scipy.stats.norm.cdf(w))
-    else:
-        r = - np.sign(np.random.rand(size) - scipy.stats.norm.cdf(w))
+    r = - np.sign(uniform.rvs(loc=0, scale=1, size) - scipy.stats.norm.cdf(w))
     z = r * y
+    
     return mu + sigma * z
 
-def dSEP(x, mu=0., sigma=1., beta=0, alpha=2, log=False):
-    """ Density function of a Skew Exponentional Power distribution (SEP).
-    
-    The density of the SEP is :math:`f_{SEP} = 2\Phi(w)f_{EP}(x, \mu, \sigma, \alpha)`
-    
-    Arguments:
-        x (numpy.array): An array of samples.
-        mu (float): Mode
-        sigma (float): Sigma
-        alpha (float): Alpha
-        beta (float): Beta
-    
-    Returns:
-        An array of densities.
-    """
-    mu, sigma, beta, alpha = float(mu), float(sigma), float(beta), float(alpha)
+
+def sep_logpdf(x, mu=0., sigma=1., beta=0, alpha=2, log=False):
+
     z = (x - mu) / sigma
     w = np.sign(z) * np.abs(z)**(alpha / 2) * beta * np.sqrt(2. / alpha)
     # Note: There is a sigma division in the paper
-    x = 2 * scipy.stats.norm.cdf(w) * dEP2(x, mu, sigma, alpha)
-    if log == False:
-        return x
-    else:
-        return np.log(x)
-     
+    logp = np.log(2) + norm.logcdf(w) + ep2_logpdf(x, mu, sigma, alpha)
+    
+    return logp
+    
 
-def likelihoodEP(x, mu, alpha, beta, log=False):
-    """ Likelihood of a sample according to an SE dist."""
-    if log == False:
-        return np.prod(dEP(x, mu, alpha, beta))
-    else:
-        return np.sum(dEP(x, mu, alpha, beta, log=True))
+def truncnorm_rvs(lower, upper, loc, scale, shape):
     
-def likelihoodEP2(x, mu, alpha, beta, log=False):
-    """ Likelihood of a sample according to an SE dist."""
-    if log == False:
-        return np.prod(dEP2(x, mu, alpha, beta))
-    else:
-        return np.sum(dEP2(x, mu, alpha, beta, log=True))
+    a = np.empty(shape)
+    
+    try:
+        m, n = shape
+        if np.isinf(lower).any():
+            for i in xrange(m):
+                a[i] = truncnorm.rvs(
+                        lower, upper[i], loc=loc, scale=scale, size=n)
+        elif np.isinf(upper).any():
+            for i in xrange(m):
+                a[i] = truncnorm.rvs(
+                        lower[i], upper, loc=loc, scale=scale, size=n)
+        else:
+            for i in xrange(m):
+                a[i] = truncnorm.rvs(
+                        lower[i], upper[i], loc=loc, scale=scale, size=n)
+    
+    except ValueError:
+        m = shape[0]
+        if np.isinf(lower).any():
+            for i in xrange(m):
+                a[i] = truncnorm.rvs(lower, upper[i], loc=loc, scale=scale)
+        elif np.isinf(upper).any():
+            for i in xrange(m):
+                a[i] = truncnorm.rvs(lower[i], upper, loc=loc, scale=scale)
+        else:
+            for i in xrange(m):
+                a[i] = truncnorm.rvs(lower[i], upper[i], loc=loc, scale=scale)
+    
+    return a
 
-def likelihoodSEP(x, mu, sigma, beta, alpha, log=False):
-    """ Likelihood of a sample according to an SEP dist."""
-    if log == False:
-        return np.prod(dSEP(x, mu, sigma, beta, alpha))
-    else:
-        return np.sum(dSEP(x, mu, sigma, beta, alpha, log=True))
+
+def truncnorm_logpdf(value, lower, upper, loc, scale):
     
-def MetropolisHastings(n, x, lik, params_init, log_prior=None):
-    r""" Estimate posterior using Metropolis-Hastings.
+    logp = 0
+    try:
+        m, n = value.shape
+        if np.isinf(lower).any():
+            for i in xrange(m):
+                logp += truncnorm.logpdf(
+                        value[i], lower, upper[i], loc=loc, scale=scale)
+        elif np.isinf(upper).any():
+            for i in xrange(m):
+                logp += truncnorm.logpdf(
+                        value[i], lower[i], upper, loc=loc, scale=scale)
+        else:
+            for i in xrange(m):
+                logp += truncnorm.logpdf(
+                        value[i], lower[i], upper[i], loc=loc, scale=scale)
     
-    Currently, only the likelihood is passed to the MH procedure. If you would 
-    like to include prior information on the parameters you should directly 
-    include it in the `lik` parameter.
+    except ValueError:
+        m = value.shape[0]
+        if np.isinf(lower).any():
+            for i in xrange(m):
+                logp += truncnorm.logpdf(
+                        value[i], lower, upper[i], loc=loc, scale=scale)
+        elif np.isinf(upper).any():
+            for i in xrange(m):
+                logp += truncnorm.logpdf(
+                        value[i], lower[i], upper, loc=loc, scale=scale)
+        else:
+            for i in xrange(m):
+                logp += truncnorm.logpdf(
+                        value[i], lower[i], upper[i], loc=loc, scale=scale)
     
-    Arguments:
-        n (int): The number of iterations (samples) to perform.
-        x (numpy.array): An array of samples
-        lik (function): A pointer to the likelihood function.
-        params_init (list): A list containing the initial parameter values.
-    
-    Returns:
-        An array containing the sampled parameters at each iteration.
+    return np.sum(logp)
+
+
+def mintruncnorm_rvs(m, mu_W, sigma_W, shape):
+    """ Sample l normal variables w_j per line s.t. min(w_j) < m.
     """
-    ndim = params_init.shape[0]
-    samples = np.zeros((n, ndim))
-    ratios = np.zeros((n, 1))
-    rate = 0.
-    f = lambda x, params, log: lik(x, *params, log=True)
     
-    par_prev = params_init
-    ll_prev = f(x, par_prev, log=True)
+    k, l = shape
+    W_traded_away = np.empty((k, l))
+    u = np.random.rand(k)
+    t = u * (1 - (1 - norm.cdf(m, loc=mu_W, scale=sigma_W))**l)
+    W_min = norm.ppf(1 - (1 - t)**(1. / l), loc=mu_W, scale=sigma_W)
+    W_traded_away[:, 0] = W_min
+    W_traded_away[:, 1:] = truncnorm_rvs(
+            (W_min - mu_W) / sigma_W,  np.inf, loc=mu_W, scale=sigma_W,
+            shape=(k, l-1))
+    return W_traded_away
+
+
+def mintruncnorm_logpdf(W, m, mu_W, sigma_W):
     
-    for i in xrange(n):
-        par_cur = par_prev + .05 * np.random.randn(ndim)
-        ll_cur = f(x, par_cur, log=True)
-        if log_prior is not None:
-            ll_prev += log_prior(par_prev)
-            ll_cur += log_prior(par_cur)
-        ratio = ll_cur - ll_prev
-        if np.log(np.random.rand()) < ratio:
-            par_prev = par_cur
-            ll_prev = ll_cur
-            rate += 1
-        samples[i] = par_prev
-        ratios[i] = ratio
-    rate /= n
+    l = W.shape[0]
+    F_0_m = 1 - (1 - norm.cdf(m, mu_W, sigma_W))
+    logp = np.sum(
+            np.log(1. / F_0_m * l)
+            + norm.logpdf(W[0], loc=mu_W, scale=sigma_W)
+            + np.log((1 - norm.cdf(W[1:], loc=mu_W, scale=sigma_W))**(l-1)))
     
-    return samples
-        
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    
-    mu, sigma, beta, alpha = 0, 15, 2, 1.6
-    x = rSEP(mu, sigma, beta, alpha, size=100000)
-    print x
-    print dSEP(x, mu, sigma, beta, alpha)
-    print np.sum(likelihoodSEP(x, mu, sigma, beta, alpha, log=True))
-    print np.sum(np.log(dSEP(x, mu, sigma, beta, alpha)))
-    _, bins, _ = plt.hist(x, 50, normed=True)
-    plt.plot(bins, dSEP(bins, mu, sigma, beta, alpha), 'r--')
-    plt.show()
+    return logp
+

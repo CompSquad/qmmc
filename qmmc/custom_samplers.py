@@ -6,92 +6,8 @@ __author__ = "arnaud.rachez@gmail.com"
 import numpy as np
 from scipy.stats import norm, truncnorm
 
-
-def _truncnorm_rvs(lower, upper, loc, scale, shape):
-    
-    a = np.empty(shape)
-    
-    try:
-        m, n = shape
-        if np.isinf(lower).any():
-            for i in xrange(m):
-                a[i] = truncnorm.rvs(
-                        lower, upper[i], loc=loc, scale=scale, size=n)
-        elif np.isinf(upper).any():
-            for i in xrange(m):
-                a[i] = truncnorm.rvs(
-                        lower[i], upper, loc=loc, scale=scale, size=n)
-        else:
-            for i in xrange(m):
-                a[i] = truncnorm.rvs(
-                        lower[i], upper[i], loc=loc, scale=scale, size=n)
-    
-    except ValueError:
-        m = shape[0]
-        if np.isinf(lower).any():
-            for i in xrange(m):
-                a[i] = truncnorm.rvs(lower, upper[i], loc=loc, scale=scale)
-        elif np.isinf(upper).any():
-            for i in xrange(m):
-                a[i] = truncnorm.rvs(lower[i], upper, loc=loc, scale=scale)
-        else:
-            for i in xrange(m):
-                a[i] = truncnorm.rvs(lower[i], upper[i], loc=loc, scale=scale)
-    
-    return a
-
-
-def _truncnorm_logpdf(value, lower, upper, loc, scale):
-    
-    logp = 0
-    try:
-        m, n = value.shape
-        if np.isinf(lower).any():
-            for i in xrange(m):
-                logp += truncnorm.logpdf(
-                        value[i], lower, upper[i], loc=loc, scale=scale)
-        elif np.isinf(upper).any():
-            for i in xrange(m):
-                logp += truncnorm.logpdf(
-                        value[i], lower[i], upper, loc=loc, scale=scale)
-        else:
-            for i in xrange(m):
-                logp += truncnorm.logpdf(
-                        value[i], lower[i], upper[i], loc=loc, scale=scale)
-    
-    except ValueError:
-        m = value.shape[0]
-        if np.isinf(lower).any():
-            for i in xrange(m):
-                logp += truncnorm.logpdf(
-                        value[i], lower, upper[i], loc=loc, scale=scale)
-        elif np.isinf(upper).any():
-            for i in xrange(m):
-                logp += truncnorm.logpdf(
-                        value[i], lower[i], upper, loc=loc, scale=scale)
-        else:
-            for i in xrange(m):
-                logp += truncnorm.logpdf(
-                        value[i], lower[i], upper[i], loc=loc, scale=scale)
-    
-    return np.sum(logp)
-
-
-def _mintruncnorm_rvs(m, mu_W, sigma_W, shape):
-    """ Sample l normal variables w_j per line s.t. min(w_j) < m.
-    """
-    
-    k, l = shape
-    W_traded_away = np.empty((k, l))
-    u = np.random.rand(k)
-    t = u * (1 - (1 - norm.cdf(m, loc=mu_W, scale=sigma_W))**l)
-    W_min = norm.ppf(1 - (1 - t)**(1. / l), loc=mu_W, scale=sigma_W)
-    W_traded_away[:, 0] = W_min
-    W_traded_away[:, 1:] = _truncnorm_rvs(
-            (W_min - mu_W) / sigma_W,  np.inf, loc=mu_W, scale=sigma_W,
-            shape=(k, l-1))
-    return W_traded_away
-
+from distrib import truncnorm_rvs, truncnorm_logpdf
+from distrib import mintruncnorm_rvs, mintruncnorm_logpdf
 
 def _sample_w(I, V, Y, mu_W, sigma_W, k, l):
     
@@ -103,19 +19,19 @@ def _sample_w(I, V, Y, mu_W, sigma_W, k, l):
     # Sampling
     # Done case: Y < min(V, W) <=> V < Y & W < Y
     W_lower = (Y[idx_done] - mu_W) / sigma_W
-    W_done = _truncnorm_rvs(
+    W_done = truncnorm_rvs(
             W_lower, np.inf, loc=mu_W, scale=sigma_W,
             shape=(sum(idx_done), l))
     
     # Traded away case: min(W) < min(Y, V) = m (Working)
     m = np.minimum(Y[idx_traded_away], V[idx_traded_away])
-    W_traded_away = _mintruncnorm_rvs(
+    W_traded_away = mintruncnorm_rvs(
             m, mu_W, sigma_W, shape=(sum(idx_traded_away), l))
     
 
     # Not traded case: min(W) > V (and Y > V)
     W_lower = (V[idx_not_traded] - mu_W) / sigma_W
-    W_not_traded = _truncnorm_rvs(
+    W_not_traded = truncnorm_rvs(
             W_lower, np.inf, loc=mu_W, scale=sigma_W,
             shape=(sum(idx_not_traded), l))
     
@@ -139,7 +55,7 @@ def _logp_w(I, V, W, Y, mu_W, sigma_W):
     
     # Done case: Y < min(V, W) => min(W) > Y
     W_lower = (Y[idx_done] - mu_W) / sigma_W
-    logp_done = _truncnorm_logpdf(
+    logp_done = truncnorm_logpdf(
             W[idx_done], W_lower, np.inf, loc=mu_W, scale=sigma_W)
     
     # Traded away case: min(W) < min(Y, V) = m (Working)
@@ -152,7 +68,7 @@ def _logp_w(I, V, W, Y, mu_W, sigma_W):
 
     # Not traded case: min(W) > V (and Y > V)
     W_lower = (V[idx_not_traded] - mu_W) / sigma_W
-    logp_not_traded = _truncnorm_logpdf(
+    logp_not_traded = truncnorm_logpdf(
             W[idx_not_traded], W_lower, np.inf, loc=mu_W, scale=sigma_W)
     
     return logp_done + logp_traded_away + logp_not_traded
@@ -214,20 +130,20 @@ def _sample_v(I, W, Y, mu_V, sigma_V):
     # Sampling
     # Done case: V < Y (and W > V)       
     V_lower = (Y[idx_done] - mu_V) / sigma_V
-    V_done = _truncnorm_rvs(
+    V_done = truncnorm_rvs(
             V_lower, np.inf, loc=mu_V, scale=sigma_V, shape=(k_done, ))
     
     # Traded away case: V > min(W) (and min(W) < Y)
     C = np.min(W[idx_traded_away], axis=1)
     V_lower = (C - mu_V) / sigma_V
-    V_traded_away = _truncnorm_rvs(
+    V_traded_away = truncnorm_rvs(
             V_lower, np.inf, loc=mu_V, scale=sigma_V, shape=(k_traded_away, ))
     
     # Not traded case: V < min(min(W), Y)
     C = np.min(W[idx_not_traded], axis=1)
     m = np.minimum(Y[idx_not_traded], C)
     V_upper = (m - mu_V) / sigma_V
-    V_not_traded = _truncnorm_rvs(
+    V_not_traded = truncnorm_rvs(
             -np.inf, V_upper, loc=mu_V, scale=sigma_V, shape=(k_not_traded, ))
     
     # Finally, assignment.
@@ -249,20 +165,20 @@ def _logp_v(I, V, W, Y, mu_V, sigma_V):
     
     # Done case: V < Y (and W > V)       
     V_lower = (Y[idx_done] - mu_V) / sigma_V
-    logp_done = _truncnorm_logpdf(
+    logp_done = truncnorm_logpdf(
             V[idx_done], V_lower, np.inf, loc=mu_V, scale=sigma_V)
     
     # Traded away case: V > min(W) (and min(W) < Y)
     C = np.min(W[idx_traded_away], axis=1)
     V_lower = (C - mu_V) / sigma_V
-    logp_traded_away = _truncnorm_logpdf(
+    logp_traded_away = truncnorm_logpdf(
             V[idx_traded_away], V_lower, np.inf, loc=mu_V, scale=sigma_V)
     
     # Not traded case: V < min(min(W), Y)
     C = np.min(W[idx_not_traded], axis=1)
     m = np.minimum(Y[idx_not_traded], C)
     V_upper = (m - mu_V) / sigma_V
-    logp_not_traded = _truncnorm_logpdf(
+    logp_not_traded = truncnorm_logpdf(
             V[idx_not_traded], -np.inf, V_upper, loc=mu_V, scale=sigma_V)
     
     return logp_done + logp_traded_away + logp_not_traded
@@ -341,7 +257,7 @@ def _sample_w_single(I, V, Y, mu_W, sigma_W, l):
     # Traded away case: min(W) < min(Y, V) = m (Working)
     elif I == 1:
         m = np.minimum(Y, V)
-        W = _mintruncnorm_rvs(m, mu_W, sigma_W, shape=(1, l))[0, :]
+        W = mintruncnorm_rvs(m, mu_W, sigma_W, shape=(1, l))[0, :]
     
     # Not traded case: min(W) > V (and Y > V)
     elif I == 0:
@@ -360,14 +276,8 @@ def _logp_w_single(I, V, W, Y, mu_W, sigma_W):
     
     # Traded away case: min(W) < min(Y, V) = m (Working)
     elif I == 1:
-        l = W.shape[0]
         m = np.minimum(Y, V)
-        F_0_m = 1 - (1 - norm.cdf(m, mu_W, sigma_W))
-        logp = np.sum(
-                np.log(1. / F_0_m * l)
-                + norm.logpdf(W[0], loc=mu_W, scale=sigma_W)
-                + np.log((1 - norm.cdf(W[1:], loc=mu_W, scale=sigma_W))**(l-1))
-                )
+        logp = mintruncnorm_logpdf(W, m, mu_W, sigma_W)
     
     # Not traded case: min(W) > V (and Y > V)
     elif I == 0:
@@ -423,6 +333,42 @@ def _logp_v_single(I, V, W, Y, mu_V, sigma_V):
     return logp
 
 
+def _sample_kvw_from_prior(I, k, V, W, Y):
+    
+    S = -1
+    I = I.value
+    while S != I:
+        k.sample()
+        V.sample()
+        W.sample()
+    
+        V = V.value
+        W = W.value
+        Y = Y.value
+    
+        S = _decide(V, W, Y)
+
+
+def _sample_kvw_from_conditional(I, k, V, W, Y):
+    
+    I = I.value
+    Y = Y.value
+    V = V.value
+     
+    mu_V = V.parents['mu'].value
+    sigma_V = V.parents['sigma'].value
+    mu_W = W.parents['mu'].value
+    sigma_W = W.parents['sigma'].value
+     
+    k = _sample_k(k, I)
+     
+    W = _sample_w_single(I, V, Y, mu_W, sigma_W, k)
+    W.value = W
+     
+    V = _sample_v_single(I, W, Y, mu_V, sigma_V)
+    V.value = V
+
+
 class KVWSampler(object):
     
     def __init__(self, k, V, W, Y, I):
@@ -437,35 +383,8 @@ class KVWSampler(object):
     
     def sample(self):
         
-        S = -1
-        I = self.I.value
-        while S != I:
-            self.k.sample()
-            self.V.sample()
-            self.W.sample()
-        
-            V = self.V.value
-            W = self.W.value
-            Y = self.Y.value
-        
-            S = _decide(V, W, Y)
-        
-#         I = self.I.value
-#         Y = self.Y.value
-#         V = self.V.value
-#         
-#         mu_V = self.V.parents['mu'].value
-#         sigma_V = self.V.parents['sigma'].value
-#         mu_W = self.W.parents['mu'].value
-#         sigma_W = self.W.parents['sigma'].value
-#         
-#         k = _sample_k(self.k, I)
-#         
-#         W = _sample_w_single(I, V, Y, mu_W, sigma_W, k)
-#         self.W.value = W
-#         
-#         V = _sample_v_single(I, W, Y, mu_V, sigma_V)
-#         self.V.value = V
+        _sample_kvw_from_prior(self.I, self.k, self.V, self.W, self.Y)
+
 
     def logp(self):
         
