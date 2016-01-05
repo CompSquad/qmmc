@@ -2,14 +2,6 @@ import qmmc
 from distutils.core import setup
 import setuptools
 
-from Cython.Build import cythonize
-import numpy
-
-setup(
-    ext_modules = cythonize("qmmc/*.pyx"),
-    include_dirs=[numpy.get_include()]
-)
-
 setup(
     name='qmmc',
     description='A module for estimating bond pricing strategies.',
