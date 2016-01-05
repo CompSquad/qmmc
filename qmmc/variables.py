@@ -309,45 +309,44 @@ class BernoulliLaplace(BaseVariable):
 
 class SEP(BaseVariable):
     
-    def __init__(self, mu, sigma, beta, alpha, value=None, observed=False,
+    def __init__(self, mu, sigma, nu, tau, value=None, observed=False,
                  name=None, size=None):
         
-        parents = {'mu': mu, 'sigma': sigma, 'beta': beta, 'alpha': alpha}
+        parents = {'mu': mu, 'sigma': sigma, 'nu': nu, 'tau': tau}
         if size is not None:
             raise ValueError("size is variable and cannot be specified.")
         super(SEP, self).__init__(
             parents=parents, value=value, observed=observed, name=name,
             size=size)
     
-    def _sample(self, mu, sigma, beta, alpha, size):
+    def _sample(self, mu, sigma, nu, tau, size):
         
-        return sep_rvs(mu=mu, sigma=sigma, beta=beta, alpha=alpha, size=size) 
+        return sep_rvs(mu=mu, sigma=sigma, nu=nu, tau=tau, size=size) 
 
-    def _logp(self, value, mu, sigma, beta, alpha):
+    def _logp(self, value, mu, sigma, nu, tau):
         
-        logp = sep_logpdf(value, mu=mu, sigma=sigma, beta=beta, alpha=alpha)
+        logp = sep_logpdf(value, mu=mu, sigma=sigma, nu=nu, tau=tau)
         return np.sum(logp)
 
 
 class BernoulliSEP(BaseVariable):
 
-    def __init__(self, mu, sigma, beta, alpha, k, value=None, observed=False,
+    def __init__(self, mu, sigma, nu, tau, k, value=None, observed=False,
                  name=None, size=None):
         
-        parents = {'mu': mu, 'sigma': sigma, 'beta': beta, 'alpha': alpha,
-                   'k': k}
+        parents = {'mu': mu, 'sigma': sigma, 'nu': nu, 'tau': tau, 'k': k}
         if size is not None:
             raise ValueError("size is variable and cannot be specified.")
         super(BernoulliSEP, self).__init__(
             parents=parents, value=value, observed=observed, name=name,
             size=size)
     
-    def _sample(self, mu, sigma, beta, alpha, k, size):
+    def _sample(self, mu, sigma, nu, tau, k, size):
         
-        return sep_rvs(mu=mu, sigma=sigma, beta=beta, alpha=alpha, size=k) 
+        return sep_rvs(mu=mu, sigma=sigma, nu=nu, tau=tau, size=k) 
 
-    def _logp(self, value, mu, sigma, beta, alpha):
+    def _logp(self, value, mu, sigma, nu, tau, k):
         
-        logp = sep_logpdf(value, mu=mu, sigma=sigma, beta=beta, alpha=alpha)
+        logp = sep_logpdf(value, mu=mu, sigma=sigma, nu=nu, tau=tau)
         return np.sum(logp)
 

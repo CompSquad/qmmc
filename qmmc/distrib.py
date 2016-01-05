@@ -44,22 +44,22 @@ def ep2_logpdf(x, mu=0, sigma=1, alpha=2):
     return np.log(d)
 
 
-def sep_rvs(mu=0, sigma=1, beta=0, alpha=2, size=1):
+def sep_rvs(mu=0, sigma=1, nu=0, tau=2, size=1):
 
-    y = ep2_rvs(0, 1, alpha, size=size)
-    w = np.sign(y) * np.abs(y)**(alpha / 2) * beta * np.sqrt(2. / alpha)
+    y = ep2_rvs(0, 1, tau, size=size)
+    w = np.sign(y) * np.abs(y)**(tau / 2) * nu * np.sqrt(2. / tau)
     r = - np.sign(uniform.rvs(loc=0, scale=1, size=size) - scipy.stats.norm.cdf(w))
     z = r * y
 
     return mu + sigma * z
 
 
-def sep_logpdf(x, mu=0., sigma=1., beta=0, alpha=2):
+def sep_logpdf(x, mu=0., sigma=1., nu=0, tau=2):
 
     z = (x - mu) / sigma
-    w = np.sign(z) * np.abs(z)**(alpha / 2) * beta * np.sqrt(2. / alpha)
+    w = np.sign(z) * np.abs(z)**(tau / 2) * nu * np.sqrt(2. / tau)
     # Note: There is a sigma division in the paper
-    logp = np.log(2) + norm.logcdf(w) + ep2_logpdf(x, mu, sigma, alpha)
+    logp = np.log(2) + norm.logcdf(w) + ep2_logpdf(x, mu, sigma, tau)
 
     return logp
 
