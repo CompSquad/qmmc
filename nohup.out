@@ -1,0 +1,62 @@
+[I 12:24:24.779 NotebookApp] Using existing profile dir: u'/Users/rachez/.ipython/profile_default'
+[I 12:24:24.782 NotebookApp] Using MathJax from CDN: https://cdn.mathjax.org/mathjax/latest/MathJax.js
+[I 12:24:24.800 NotebookApp] Serving notebooks from local directory: /Users/rachez/workspaces/python/qmmc
+[I 12:24:24.800 NotebookApp] 0 active kernels 
+[I 12:24:24.800 NotebookApp] The IPython Notebook is running at: http://localhost:8888/
+[I 12:24:24.800 NotebookApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
+_RegisterApplication(), FAILED TO establish the default connection to the WindowServer, _CGSDefaultConnection() is NULL.
+0:42: execution error: An error of type -10810 has occurred. (-10810)
+[W 12:24:36.582 NotebookApp] Notebook examples/Extended RFQ model.ipynb is not trusted
+[I 12:24:36.826 NotebookApp] Kernel started: c205ce8c-2d27-4b5b-bb55-4f33c30877c3
+[I 12:26:36.835 NotebookApp] Saving file at /examples/Extended RFQ model.ipynb
+[W 12:26:36.836 NotebookApp] Saving untrusted notebook examples/Extended RFQ model.ipynb
+[I 12:56:48.583 NotebookApp] Saving file at /examples/Extended RFQ model.ipynb
+[W 14:14:49.567 NotebookApp] Notebook examples/SEP Extended RFQ model TEST.ipynb is not trusted
+[I 14:14:50.193 NotebookApp] Kernel started: dcabc327-40f8-4ff6-89d9-059cded68c6f
+[I 14:14:52.654 NotebookApp] Copying examples/SEP Extended RFQ model TEST.ipynb to /examples
+[W 14:14:52.676 NotebookApp] Notebook examples/SEP Extended RFQ model TEST.ipynb is not trusted
+[W 14:14:52.693 NotebookApp] Saving untrusted notebook examples/SEP Extended RFQ model TEST-Copy1.ipynb
+[W 14:14:52.902 NotebookApp] Notebook examples/SEP Extended RFQ model TEST-Copy1.ipynb is not trusted
+[I 14:14:53.136 NotebookApp] Kernel started: cf124adb-7413-4881-8a80-2e28af917457
+[I 14:15:37.203 NotebookApp] Saving file at /examples/SEP Extended RFQ model.ipynb
+[W 14:15:37.203 NotebookApp] Saving untrusted notebook examples/SEP Extended RFQ model.ipynb
+[I 14:16:42.193 NotebookApp] Kernel restarted: cf124adb-7413-4881-8a80-2e28af917457
+[I 14:16:57.021 NotebookApp] Saving file at /examples/SEP Extended RFQ model.ipynb
+[W 14:16:57.021 NotebookApp] Saving untrusted notebook examples/SEP Extended RFQ model.ipynb
+[I 14:17:44.398 NotebookApp] Kernel restarted: cf124adb-7413-4881-8a80-2e28af917457
+[I 14:18:51.493 NotebookApp] Kernel shutdown: dcabc327-40f8-4ff6-89d9-059cded68c6f
+[I 14:18:57.320 NotebookApp] Saving file at /examples/SEP Extended RFQ model.ipynb
+[W 14:18:57.320 NotebookApp] Saving untrusted notebook examples/SEP Extended RFQ model.ipynb
+[I 14:53:58.349 NotebookApp] Saving file at /examples/Extended RFQ model.ipynb
+[I 14:55:58.242 NotebookApp] Saving file at /examples/Extended RFQ model.ipynb
+[I 15:07:40.322 NotebookApp] New terminal with automatic name: 1
+[I 15:08:26.575 NotebookApp] EOF on FD 54; stopping reading
+[I 15:08:26.576 NotebookApp] Terminal 1 closed
+[I 15:09:13.007 NotebookApp] Copying examples/Extended RFQ model.ipynb to /examples
+[I 15:09:13.476 NotebookApp] Kernel started: b7f6b7d2-9e40-496f-982c-d926649a951b
+[I 15:11:14.210 NotebookApp] Saving file at /examples/LAPLACE Extended RFQ model.ipynb
+[W 15:11:18.959 NotebookApp] Notebook examples/Extended RFQ model TEST.ipynb is not trusted
+[I 15:11:19.157 NotebookApp] Kernel started: b82505a2-3b03-43a2-a48e-7519f831202b
+[I 15:11:33.202 NotebookApp] Kernel shutdown: b82505a2-3b03-43a2-a48e-7519f831202b
+[I 15:13:41.126 NotebookApp] New terminal with automatic name: 1
+[I 15:15:16.202 NotebookApp] Saving file at /examples/LAPLACE Extended RFQ model.ipynb
+[I 15:41:46.374 NotebookApp] Saving file at /examples/SEP Extended RFQ model.ipynb
+[W 15:41:46.374 NotebookApp] Saving untrusted notebook examples/SEP Extended RFQ model.ipynb
+[I 15:43:46.497 NotebookApp] Saving file at /examples/SEP Extended RFQ model.ipynb
+[W 15:43:46.497 NotebookApp] Saving untrusted notebook examples/SEP Extended RFQ model.ipynb
+[I 15:44:47.497 NotebookApp] Saving file at /examples/SEP Extended RFQ model.ipynb
+[W 15:44:47.497 NotebookApp] Saving untrusted notebook examples/SEP Extended RFQ model.ipynb
+[I 15:45:32.134 NotebookApp] Saving file at /examples/LAPLACE Extended RFQ model.ipynb
+[I 15:45:47.135 NotebookApp] Saving file at /examples/SEP Extended RFQ model.ipynb
+[W 15:45:47.136 NotebookApp] Saving untrusted notebook examples/SEP Extended RFQ model.ipynb
+[I 15:47:34.037 NotebookApp] Saving file at /examples/LAPLACE Extended RFQ model.ipynb
+[I 15:48:19.238 NotebookApp] Saving file at /examples/GAUSSIAN Extended RFQ model.ipynb
+[I 09:25:57.658 NotebookApp] 302 GET / (::1) 0.36ms
+[W 09:26:05.588 NotebookApp] Notebook examples/SEP Extended RFQ model.ipynb is not trusted
+[I 09:26:12.359 NotebookApp] New terminal with automatic name: 2
+[I 09:28:05.949 NotebookApp] Saving file at /examples/SEP Extended RFQ model.ipynb
+[W 09:28:05.950 NotebookApp] Saving untrusted notebook examples/SEP Extended RFQ model.ipynb
+[I 09:32:09.081 NotebookApp] Saving file at /examples/SEP Extended RFQ model.ipynb
+[I 09:34:15.046 NotebookApp] Saving file at /examples/SEP Extended RFQ model.ipynb
+[I 09:52:36.898 NotebookApp] Saving file at /examples/LAPLACE Extended RFQ model.ipynb
+[I 09:54:28.881 NotebookApp] Saving file at /examples/SEP Extended RFQ model.ipynb
