@@ -223,18 +223,6 @@ class VSampler(object):
         return _logp_v(I, V, W, Y, mu_V, sigma_V)
 
 
-def _decide(V, W, Y):
-    
-    if len(W) > 0:
-        C = np.min(W)
-    else:
-        C = np.inf
-    
-    if Y <= np.minimum(C, V):return 2
-    if C <= np.minimum(Y, V): return 1
-    if V < np.minimum(C, Y): return 0
-
-
 def _sample_k(k, I):
     
     kv = k.sample()
@@ -331,6 +319,18 @@ def _logp_v_single(I, V, W, Y, mu_V, sigma_V):
         logp = truncnorm.logpdf(V, -np.inf, V_upper, loc=mu_V, scale=sigma_V)
     
     return logp
+
+
+def _decide(V, W, Y):
+    
+    if len(W) > 0:
+        C = np.min(W)
+    else:
+        C = np.inf
+    
+    if Y <= np.minimum(C, V):return 2
+    if C <= np.minimum(Y, V): return 1
+    if V < np.minimum(C, Y): return 0
 
 
 def _sample_kvw_from_prior(I, k, V, W, Y):
