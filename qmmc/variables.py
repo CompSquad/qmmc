@@ -308,7 +308,7 @@ class BernoulliLaplace(BaseVariable):
 
     def _logp(self, value, loc, scale, k):
 
-        return np.sum(norm.logpdf(value, loc=loc, scale=scale))
+        return np.sum(laplace.logpdf(value, loc=loc, scale=scale))
 
 
 class SEP(BaseVariable):
