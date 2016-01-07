@@ -7,7 +7,8 @@ from copy import copy
 from inspect import getargspec
 
 import numpy as np
-from scipy.stats import beta, invgamma, laplace, norm, binom, bernoulli
+from scipy.stats import beta, invgamma, laplace, norm
+from scipy.stats import binom, bernoulli, uniform
 from qmmc.distrib import sep_rvs, sep_logpdf
 
 
@@ -186,7 +187,10 @@ class Beta(BaseVariable):
         return beta.rvs(a, b, size=size)
 
     def _logp(self, value, a, b):
-
+        
+        if value < 0 or value > 1:
+            raise ValueError("Domain Error.")
+        
         return np.sum(beta.logpdf(value, a, b))
 
 
@@ -313,8 +317,6 @@ class SEP(BaseVariable):
                  name=None, size=None):
         
         parents = {'mu': mu, 'sigma': sigma, 'nu': nu, 'tau': tau}
-        if size is not None:
-            raise ValueError("size is variable and cannot be specified.")
         super(SEP, self).__init__(
             parents=parents, value=value, observed=observed, name=name,
             size=size)
@@ -350,3 +352,26 @@ class BernoulliSEP(BaseVariable):
         logp = sep_logpdf(value, mu=mu, sigma=sigma, nu=nu, tau=tau)
         return np.sum(logp)
 
+
+class Uniform(BaseVariable):
+    
+    
+    def __init__(self, lower, upper, value=None, observed=False, name=None,
+                 size=None):
+    
+        parents = {'lower': lower, 'upper': upper}
+        super(BernoulliSEP, self).__init__(
+            parents=parents, value=value, observed=observed, name=name,
+            size=size)
+    
+    def _sample(self, lower, upper, size):
+        
+        return uniform.rvs(loc=lower, scale=upper-lower, size=size)
+
+    def _logp(self, value, lower, upper):
+        
+        if value < lower or value > upper:
+            raise ValueError("Domain Error.") 
+
+        return np.sum(uniform.logpdf(value, loc=lower, scale=upper-lower)) 
+    
