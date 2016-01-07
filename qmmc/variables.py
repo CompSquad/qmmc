@@ -360,7 +360,7 @@ class Uniform(BaseVariable):
                  size=None):
     
         parents = {'lower': lower, 'upper': upper}
-        super(BernoulliSEP, self).__init__(
+        super(Uniform, self).__init__(
             parents=parents, value=value, observed=observed, name=name,
             size=size)
     
