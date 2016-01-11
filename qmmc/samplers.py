@@ -47,16 +47,17 @@ class MHSampler(object):
         try:
             self._propose()
             logp_new = self.sum_logp()
+        
+       	    if np.log(np.random.rand()) > logp_new - logp_prev:
+                self.variable.reject()
+                self.rejected +=1
+            else:
+                self.accepted += 1
+
         except ValueError:
             self.variable.reject()
             self.rejected += 1
-        
-        if np.log(np.random.rand()) > logp_new - logp_prev:
-            self.variable.reject()
-            self.rejected +=1
-        else:
-            self.accepted += 1
-        
+
         self.history.append(self.variable.value)
     
     def logp(self):

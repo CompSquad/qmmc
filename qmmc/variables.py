@@ -308,7 +308,7 @@ class BernoulliLaplace(BaseVariable):
 
     def _logp(self, value, loc, scale, k):
 
-        return np.sum(norm.logpdf(value, loc=loc, scale=scale))
+        return np.sum(laplace.logpdf(value, loc=loc, scale=scale))
 
 
 class SEP(BaseVariable):
@@ -360,7 +360,7 @@ class Uniform(BaseVariable):
                  size=None):
     
         parents = {'lower': lower, 'upper': upper}
-        super(BernoulliSEP, self).__init__(
+        super(Uniform, self).__init__(
             parents=parents, value=value, observed=observed, name=name,
             size=size)
     
