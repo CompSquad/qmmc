@@ -338,7 +338,7 @@ def _sample_kvw_from_prior(I, k, V, W, Y):
     S = -1
     I = I.value
     while S != I:
-        k.sample()
+#        k.sample()
         V.sample()
         W.sample()
     
