@@ -1,8 +1,13 @@
+"""Same as `sampler_gaussian_single` but for multidimensional distributions."""
+
+__author__ = "arnaud.rachez@gmail.com"
+
+
 import numpy as np
 from scipy.stats import norm, truncnorm
 
-from minipgm.distributions import truncnorm_rvs, truncnorm_logpdf
-from minipgm.distributions import mintruncnorm_rvs, mintruncnorm_logpdf
+from ..distributions import truncnorm_rvs, truncnorm_logpdf
+from ..distributions import mintruncnorm_rvs, mintruncnorm_logpdf
 
 def _sample_w(I, V, Y, mu_W, sigma_W, k, l):
     

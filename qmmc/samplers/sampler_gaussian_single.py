@@ -1,13 +1,15 @@
-"""Samplers specific to the RFQ structural model."""
+""" Sampler assuming V and W gaussian.
+
+This sampler can speed up the estimation greatly when V_i and W_{i,j} are
+gaussian distributions. 
+"""
 
 __author__ = "arnaud.rachez@gmail.com"
-
 
 import numpy as np
 from scipy.stats import norm, truncnorm
 
-from minipgm.distributions import truncnorm_rvs, truncnorm_logpdf
-from minipgm.distributions import mintruncnorm_rvs, mintruncnorm_logpdf
+from ..distributions import mintruncnorm_rvs, mintruncnorm_logpdf
 
 
 def _sample_k(k, I):
@@ -126,39 +128,4 @@ def _sample_kvw_from_conditional(I, k, V, W, Y):
      
     V = _sample_v_single(I, W, Y, mu_V, sigma_V)
     V.value = V
-
-
-class KVWSampler(object):
-    
-    def __init__(self, k, V, W, Y, I):
-        
-        self.assigned = {k, V, W}
-        
-        self.k = k
-        self.V = V
-        self.W = W
-        self.Y = Y
-        self.I = I
-    
-    def sample(self):
-        
-        _sample_kvw_from_prior(self.I, self.k, self.V, self.W, self.Y)
-
-
-    def logp(self):
-        
-        I = self.I.value
-        V = self.V.value
-        W = self.W.value
-        Y = self.Y.value
-        
-        mu_W = self.W.parents['mu'].value
-        sigma_W = self.W.parents['sigma'].value
-        mu_V = self.V.parents['mu'].value
-        sigma_V = self.V.parents['sigma'].value
-        
-        logp_w = _logp_w_single(I, V, W, Y, mu_W, sigma_W)
-        logp_v = _logp_v_single(I, V, W, Y, mu_V, sigma_V)
-        
-        return logp_v + logp_w
 
