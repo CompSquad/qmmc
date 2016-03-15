@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/CompSquad/qmmc.svg?branch=master)](https://travis-ci.org/CompSquad/qmmc)
+
 Quote market Monte Carlo.
 =========================
 
